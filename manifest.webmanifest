@@ -1,0 +1,11 @@
+{
+  "name": "Brainrot Election 2026",
+  "short_name": "Brainrot Election",
+  "description": "Pick any country's parody party and survive the campaign.",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#11112b",
+  "theme_color": "#11112b",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
