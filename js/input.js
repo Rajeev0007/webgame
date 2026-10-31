@@ -50,6 +50,7 @@
     if (e.code === "KeyP" || e.code === "Escape") emit("pause");
     if (e.code === "KeyM") emit("mute");
     if (e.code === "KeyF") emit("fullscreen");
+    if (e.code === "KeyR") emit("reroll");
     if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") emit("choose", Number(e.code.slice(-1)) - 1);
     if (e.code === "Enter" && !(document.activeElement && document.activeElement.tagName === "BUTTON")) emit("confirm");
   });
@@ -126,6 +127,7 @@
     // special first: it only acts while playing, so confirming a menu/upgrade never also fires it
     if (edge(0)) { emit("special", "pad-a"); emit("confirm", "pad"); }
     if (edge(1)) emit("back");
+    if (edge(3)) emit("reroll");
     if (edge(4) || edge(5) || edge(6) || edge(7) || edge(2)) emit("special", "pad");
     if (edge(9) || edge(8)) emit("pause");
 

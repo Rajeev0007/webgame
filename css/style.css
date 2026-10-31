@@ -140,8 +140,10 @@ body.mode-touch .special-btn #special-icon { font-size: 40px; }
 
 .toast {
   position: fixed;
-  bottom: calc(20px + var(--safe-b)); left: 50%;
+  top: calc(10px + var(--safe-t)); left: 50%;
   transform: translateX(-50%);
+  max-width: min(92vw, 520px);
+  text-align: center;
   background: #1e1b4bee;
   border: 2px solid var(--violet);
   padding: 8px 16px;
@@ -377,3 +379,84 @@ body.mode-gamepad button:focus, body.mode-gamepad input:focus { outline: 3px sol
   h1 { font-size: 30px; }
   .boss-bar { top: calc(70px + var(--safe-t)); }
 }
+
+/* ================= Combo ================= */
+.combo {
+  align-self: flex-start;
+  background: rgba(0,0,0,0.6);
+  border: 2px solid #f97316;
+  border-radius: 8px;
+  padding: 2px 8px 4px;
+  font-weight: 900;
+  font-size: 14px;
+  color: #fdba74;
+  text-shadow: 1px 1px 0 #000;
+  min-width: 130px;
+}
+.combo.hot { animation: comboHot 0.35s infinite alternate; color: #fde047; border-color: #facc15; }
+@keyframes comboHot { to { transform: scale(1.06); } }
+.combo-bar { height: 4px; background: #0008; border-radius: 3px; overflow: hidden; margin-top: 2px; }
+.combo-bar div { height: 100%; background: linear-gradient(90deg, #f97316, #facc15); }
+
+/* ================= Shop ================= */
+.funds-big { font-size: 20px; color: #fde68a; font-weight: bold; }
+.funds-big:empty { display: none; }
+.shop-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; text-align: left; }
+.shop-item {
+  background: rgba(0,0,0,0.35);
+  border: 2px solid #4c1d95;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.shop-item.maxed { border-color: #22c55e; }
+.shop-item .top { display: flex; align-items: center; gap: 8px; }
+.shop-item .ico { font-size: 30px; }
+.shop-item .nm { font-weight: bold; }
+.shop-item .ds { font-size: 12px; color: #c7d2fe; }
+.pips { display: flex; gap: 4px; }
+.pips i { width: 14px; height: 8px; border-radius: 3px; background: #0008; border: 1px solid #fff3; }
+.pips i.on { background: var(--gold); }
+.shop-item button {
+  background: linear-gradient(180deg, var(--gold), #f59e0b);
+  color: #1e1b4b;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.shop-item button:disabled { background: #374151; color: #9ca3af; cursor: not-allowed; }
+
+/* ================= Achievements ================= */
+.ach-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; text-align: left; max-height: 50vh; overflow-y: auto; padding: 2px; }
+.ach {
+  display: flex; gap: 10px; align-items: center;
+  background: rgba(0,0,0,0.35);
+  border: 2px solid #374151;
+  border-radius: 12px;
+  padding: 8px 10px;
+  opacity: 0.7;
+}
+.ach.done { border-color: var(--gold); opacity: 1; background: #facc1518; }
+.ach .ico { font-size: 28px; filter: grayscale(1); }
+.ach.done .ico { filter: none; }
+.ach .nm { font-weight: bold; font-size: 14px; }
+.ach .ds { font-size: 12px; color: #c7d2fe; }
+.ach .pr { height: 5px; background: #0008; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.ach .pr div { height: 100%; background: linear-gradient(90deg, #38bdf8, var(--gold)); }
+.ach .rw { font-size: 11px; color: #fde68a; }
+.wide-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.go-ach:empty { display: none; }
+.go-ach { display: flex; flex-direction: column; gap: 4px; }
+.go-ach div { background: #facc1522; border: 1px solid var(--gold); border-radius: 8px; padding: 5px 8px; font-size: 14px; }
+
+/* ================= Pause build ================= */
+.build { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.build:empty { display: none; }
+.build span { background: #0005; border: 1px solid #fff2; border-radius: 6px; padding: 2px 7px; font-size: 13px; }
+.build span.w { border-color: #f97316; }
+
+.card.weapon { border-color: #f97316; }
+.card .tagnew { font-size: 11px; background: #f97316; color: #fff; border-radius: 6px; padding: 1px 6px; font-weight: bold; }
+.toast.ach { border-color: var(--gold); background: #422006ee; }

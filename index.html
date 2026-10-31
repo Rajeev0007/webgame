@@ -24,6 +24,7 @@
         <div class="bar hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
         <div class="bar xp"><div id="xp-fill"></div><span id="lvl-text"></span></div>
         <div id="effects" class="effects"></div>
+        <div id="combo" class="combo hidden"><span id="combo-text"></span><div class="combo-bar"><div id="combo-fill"></div></div></div>
       </div>
       <div class="hud-right">
         <div class="votes">🗳️ <strong id="votes">0</strong></div>
@@ -58,6 +59,10 @@
       <p class="tag">Pick any country's parody party. Dodge fact checkers. Farm aura. Survive 10 waves to get elected.</p>
       <button id="btn-play" class="big-btn" data-primary>▶ PLAY</button>
       <div class="btn-row">
+        <button id="btn-shop" class="big-btn secondary">🏛️ Campaign HQ</button>
+        <button id="btn-ach" class="big-btn secondary">🏅 Achievements</button>
+      </div>
+      <div class="btn-row">
         <button id="btn-howto" class="big-btn secondary">❓ How to play</button>
         <button id="btn-board" class="big-btn secondary">🏆 Leaderboard</button>
       </div>
@@ -65,7 +70,7 @@
         <button id="btn-settings" class="big-btn secondary">⚙️ Settings</button>
         <button id="btn-fs" class="big-btn secondary fs-btn">⛶ Fullscreen</button>
       </div>
-      <div class="best">Best: <strong id="best-score">0</strong> votes</div>
+      <div class="best">Best: <strong id="best-score">0</strong> votes · 💰 <strong id="menu-funds">0</strong> funds · 🏅 <strong id="menu-ach">0</strong></div>
       <p class="fine">All parties, slogans and characters are fictional parody.</p>
     </div>
   </div>
@@ -95,7 +100,17 @@
   <div id="howto" class="screen hidden">
     <div class="panel wide">
       <h2>❓ How to play</h2>
-      <p>Survive 10 waves of haters to get elected. Your candidate shoots automatically. Collect 🔵 votes to level up and pick upgrades. Bosses show up on waves 5 and 10. After you win you can keep going in Endless mode.</p>
+      <p>Survive 10 waves of haters to get elected. Your candidate shoots automatically. Collect 🔵 votes to level up and pick upgrades, including 4 bonus weapons. Bosses show up on waves 5 and 10, and Endless mode adds 2 more.</p>
+      <div class="legend">
+        <div>🔥 <b>Combo</b>: keep killing to build a vote multiplier, up to x3. Getting hit resets it.</div>
+        <div>✨ <b>Elites</b>: golden haters. Tougher, but they drop lots of votes and power-ups.</div>
+        <div>🎲 <b>Wave events</b>: random modifiers like Golden Hour, Debate Night or Blackout.</div>
+        <div>💰 <b>Funds</b>: earned every run. Spend them in 🏛️ Campaign HQ on permanent upgrades.</div>
+      </div>
+      <h3>Bonus weapons</h3>
+      <div class="legend" id="legend-weapons"></div>
+      <h3>Wave events</h3>
+      <div class="legend" id="legend-events"></div>
       <div class="controls-grid">
         <div class="ctl-card">
           <h3>⌨️ Keyboard + Mouse</h3>
@@ -147,6 +162,30 @@
     </div>
   </div>
 
+  <!-- ================= CAMPAIGN HQ (SHOP) ================= -->
+  <div id="shop" class="screen hidden">
+    <div class="panel wide">
+      <h2>🏛️ Campaign HQ</h2>
+      <p class="tag">Spend campaign funds on permanent upgrades. You earn funds from votes, waves, elites, wins and achievements.</p>
+      <div class="funds-big">💰 <strong id="shop-funds">0</strong> funds</div>
+      <div id="shop-list" class="shop-list"></div>
+      <div class="btn-row">
+        <button class="big-btn back-btn" data-primary>← Back</button>
+        <button id="shop-refund" class="big-btn secondary">↺ Refund all</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ACHIEVEMENTS ================= -->
+  <div id="achievements" class="screen hidden">
+    <div class="panel wide">
+      <h2>🏅 Achievements <span id="ach-count" class="count"></span></h2>
+      <div id="life-stats" class="stats wide-stats"></div>
+      <div id="ach-list" class="ach-list"></div>
+      <button class="big-btn back-btn" data-primary>← Back</button>
+    </div>
+  </div>
+
   <!-- ================= SETTINGS ================= -->
   <div id="settings" class="screen hidden">
     <div class="panel">
@@ -174,7 +213,8 @@
     <div class="panel wide">
       <h2>📈 POLLS ARE UP! Pick a buff</h2>
       <div id="upgrade-list" class="upgrade-list"></div>
-      <p class="hint">Click / tap · keys 1, 2, 3 · gamepad A</p>
+      <button id="reroll-btn" class="big-btn secondary">🎲 Reroll</button>
+      <p class="hint">Click / tap · keys 1, 2, 3 · R to reroll · gamepad A / Y</p>
     </div>
   </div>
 
@@ -183,6 +223,7 @@
     <div class="panel">
       <h2>⏸ Campaign Paused</h2>
       <div id="pause-stats" class="stats"></div>
+      <div id="pause-build" class="build"></div>
       <button id="resume-btn" class="big-btn" data-primary>▶ RESUME</button>
       <button id="pause-settings" class="big-btn secondary">⚙️ Settings</button>
       <button id="restart-btn" class="big-btn secondary">↻ Restart</button>
@@ -197,6 +238,8 @@
       <h2 id="go-title"></h2>
       <p id="go-sub"></p>
       <div id="go-stats" class="stats"></div>
+      <div id="go-funds" class="funds-big"></div>
+      <div id="go-ach" class="go-ach"></div>
       <button id="endless-btn" class="big-btn hidden">♾️ KEEP CAMPAIGNING (Endless)</button>
       <button id="again-btn" class="big-btn" data-primary>↻ RUN AGAIN</button>
       <button id="change-btn" class="big-btn secondary">🌍 Change candidate</button>
@@ -205,6 +248,7 @@
   </div>
 
   <script src="js/countries.js"></script>
+  <script src="js/meta.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/input.js"></script>
   <script src="js/game.js"></script>

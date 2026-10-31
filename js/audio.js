@@ -81,6 +81,14 @@
     lose:    () => [392, 330, 262, 196].forEach((f, i) => tone(f, 0.35, "sawtooth", 0.07, f * 0.97, i * 0.22)),
     charm:   () => [880, 1108, 1318].forEach((f, i) => tone(f, 0.3, "sine", 0.07, 0, i * 0.08)),
     dash:    () => noise(0.25, 0.15, 2500, 0, sfxGain, "highpass"),
+    pulse:   () => { tone(180, 0.25, "sine", 0.12, 60); noise(0.15, 0.06, 500); },
+    zap:     () => { tone(1400, 0.08, "sawtooth", 0.04, 300); noise(0.06, 0.05, 6000, 0, sfxGain, "highpass"); },
+    horn:    () => { tone(330, 0.35, "square", 0.05); tone(415, 0.35, "square", 0.05); },
+    combo:   () => [784, 988, 1175].forEach((f, i) => tone(f, 0.1, "square", 0.05, 0, i * 0.05)),
+    buy:     () => [660, 880, 1320].forEach((f, i) => tone(f, 0.12, "triangle", 0.08, 0, i * 0.06)),
+    achieve: () => [523, 784, 1046, 1568].forEach((f, i) => tone(f, 0.22, "triangle", 0.09, 0, i * 0.09)),
+    tele:    () => tone(300, 0.2, "sine", 0.06, 1500),
+    error:   () => tone(150, 0.15, "square", 0.05, 110),
   };
   const last = {};
   A.sfx = name => {

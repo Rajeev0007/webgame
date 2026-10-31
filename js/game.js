@@ -2,7 +2,7 @@
 (() => {
   "use strict";
   const BR = window.BR;
-  const SND = BR.Audio, IN = BR.Input, CHARS = BR.CHARACTERS;
+  const SND = BR.Audio, IN = BR.Input, CHARS = BR.CHARACTERS, META = BR.Meta;
   const $ = id => document.getElementById(id);
   const rand = (a, b) => a + Math.random() * (b - a);
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -40,26 +40,44 @@
   //  GAME DATA
   // =====================================================================
   const ENEMIES = {
-    fact:     { name: "Fact Checker", emoji: "🧐", hp: 18, speed: 1.4, dmg: 8,  r: 16, xp: 1, size: 32, info: "Chases you. Basic hater." },
-    pap:      { name: "Paparazzi",    emoji: "📸", hp: 10, speed: 2.4, dmg: 5,  r: 14, xp: 1, size: 28, info: "Fast and fragile." },
-    intern:   { name: "Intern",       emoji: "☕", hp: 8,  speed: 3.0, dmg: 4,  r: 12, xp: 1, size: 24, info: "Very fast, comes in swarms." },
-    bot:      { name: "Troll Bot",    emoji: "🤖", hp: 42, speed: 1.0, dmg: 12, r: 18, xp: 2, size: 36, info: "Slow but tanky." },
-    reporter: { name: "Reporter",     emoji: "🎤", hp: 26, speed: 1.1, dmg: 8,  r: 16, xp: 2, size: 32, shooter: true, info: "Keeps distance, throws ❓ questions." },
-    scandal:  { name: "Scandal",      emoji: "💩", hp: 55, speed: 0.9, dmg: 14, r: 20, xp: 3, size: 40, splits: true, info: "Splits into 2 mini scandals." },
-    mini:     { name: "Mini Scandal", emoji: "💩", hp: 12, speed: 1.9, dmg: 6,  r: 11, xp: 1, size: 22, info: "" },
+    fact:       { name: "Fact Checker", emoji: "🧐", hp: 18, speed: 1.4,  dmg: 8,  r: 16, xp: 1, size: 32, info: "Chases you. Basic hater." },
+    pap:        { name: "Paparazzi",    emoji: "📸", hp: 10, speed: 2.4,  dmg: 5,  r: 14, xp: 1, size: 28, info: "Fast and fragile." },
+    intern:     { name: "Intern",       emoji: "☕", hp: 8,  speed: 3.0,  dmg: 4,  r: 12, xp: 1, size: 24, info: "Very fast, comes in swarms." },
+    protester:  { name: "Protester",    emoji: "🪧", hp: 20, speed: 1.25, dmg: 7,  r: 15, xp: 1, size: 30, mob: true, info: "Shows up in mobs of 6." },
+    bot:        { name: "Troll Bot",    emoji: "🤖", hp: 42, speed: 1.0,  dmg: 12, r: 18, xp: 2, size: 36, info: "Slow but tanky." },
+    reporter:   { name: "Reporter",     emoji: "🎤", hp: 26, speed: 1.1,  dmg: 8,  r: 16, xp: 2, size: 32, shooter: true, info: "Keeps its distance and throws ❓ questions." },
+    influencer: { name: "Influencer",   emoji: "🤳", hp: 24, speed: 1.3,  dmg: 11, r: 15, xp: 2, size: 30, charger: true, info: "Stops, flashes ❗, then charges at you." },
+    scandal:    { name: "Scandal",      emoji: "💩", hp: 55, speed: 0.9,  dmg: 14, r: 20, xp: 3, size: 40, splits: true, info: "Splits into 2 mini scandals." },
+    pollster:   { name: "Pollster",     emoji: "📊", hp: 34, speed: 0.85, dmg: 6,  r: 16, xp: 3, size: 32, healer: true, info: "Heals nearby haters. Kill it first!" },
+    hacker:     { name: "Hacker",       emoji: "👾", hp: 16, speed: 1.2,  dmg: 9,  r: 14, xp: 2, size: 30, teleporter: true, info: "Flickers, then teleports next to you." },
+    mini:       { name: "Mini Scandal", emoji: "💩", hp: 12, speed: 1.9,  dmg: 6,  r: 11, xp: 1, size: 22, info: "" },
   };
   const BOSS_DEFS = {
-    lobbyist: { name: "THE LOBBYIST",       emoji: "💰", hp: 900,  speed: 0.75, dmg: 25, r: 44, xp: 40, size: 88,  bullet: "💵", voice: "The Lobbyist has entered the chat." },
-    lizard:   { name: "LIZARD OVERLORD 👁️", emoji: "🦎", hp: 2200, speed: 0.9,  dmg: 30, r: 50, xp: 80, size: 100, bullet: "👁️", voice: "The Lizard Overlord is here. Your aura is mine." },
+    lobbyist:  { id: "lobbyist",  name: "THE LOBBYIST",       emoji: "💰", hp: 900,  speed: 0.75, dmg: 25, r: 44, xp: 40,  size: 88,  bullet: "💵", pattern: "ring",    voice: "The Lobbyist has entered the chat." },
+    lizard:    { id: "lizard",    name: "LIZARD OVERLORD 👁️", emoji: "🦎", hp: 2200, speed: 0.9,  dmg: 30, r: 50, xp: 80,  size: 100, bullet: "👁️", pattern: "spiral",  voice: "The Lizard Overlord is here. Your aura is mine." },
+    mogul:     { id: "mogul",     name: "THE MEDIA MOGUL",    emoji: "📺", hp: 3400, speed: 0.8,  dmg: 30, r: 48, xp: 120, size: 96,  bullet: "📰", pattern: "streams", voice: "Breaking news. You are cancelled." },
+    algorithm: { id: "algorithm", name: "THE ALGORITHM",      emoji: "🧠", hp: 4400, speed: 1.0,  dmg: 32, r: 46, xp: 160, size: 92,  bullet: "🔻", pattern: "fan",     voice: "The Algorithm has decided. You will not trend." },
   };
+  const BOSS_ORDER = ["lobbyist", "lizard", "mogul", "algorithm"];
   const WAVES = ["Town Hall", "Iowa Caucus", "Primary Season", "TV Debate", "Lobbyist Showdown",
     "Swing States", "Scandal Week", "October Surprise", "Final Debate", "ELECTION NIGHT"];
   const waveName = w => (w <= WAVES.length ? WAVES[w - 1] : `Re-election #${w - WAVES.length}`);
   function bossFor(w) {
     if (w % 5 !== 0) return null;
-    const B = w % 10 === 0 ? BOSS_DEFS.lizard : BOSS_DEFS.lobbyist;
-    return { ...B, hp: B.hp * (1 + Math.max(0, w - 10) * 0.18) };
+    const n = w / 5 - 1;
+    const B = BOSS_DEFS[BOSS_ORDER[n % BOSS_ORDER.length]];
+    const cycle = Math.floor(n / BOSS_ORDER.length);
+    return { ...B, hp: B.hp * (1 + cycle * 1.2 + Math.max(0, w - 10) * 0.05) };
   }
+
+  const EVENTS = {
+    debate:   { emoji: "📺", name: "Debate Night",  desc: "Haters move 30% faster" },
+    golden:   { emoji: "✨", name: "Golden Hour",   desc: "Every vote counts double" },
+    news:     { emoji: "📰", name: "Breaking News", desc: "Power-ups drop 3x as often" },
+    turnout:  { emoji: "🌧️", name: "Low Turnout",   desc: "Fewer haters, but 3x elites" },
+    rally:    { emoji: "🎉", name: "Rally Day",     desc: "+50% haters, +50% votes" },
+    blackout: { emoji: "🕶️", name: "Blackout",      desc: "Lights out! You can only see near you" },
+  };
 
   const POWERUPS = {
     shield: { emoji: "🛡️", name: "Filibuster",   desc: "Invincible for 5s" },
@@ -68,6 +86,13 @@
     viral:  { emoji: "📱", name: "Viral Tweet",  desc: "Damages every hater" },
     double: { emoji: "🗳️", name: "Double Votes", desc: "2x votes for 10s" },
     magnet: { emoji: "🧲", name: "Vote Magnet",  desc: "Pulls in every vote" },
+  };
+
+  const WEAPONS = {
+    boomerang: { emoji: "🪃", name: "Boomerang Policy", desc: "Throws boomerangs that fly out, come back, and pierce everything.", lvl: "+1 boomerang, +20% damage" },
+    mic:       { emoji: "🎤", name: "Mic Drop",         desc: "A shockwave pulses out around you.",                            lvl: "Bigger, stronger, more often" },
+    chain:     { emoji: "⚡", name: "Hot Mic Chain",    desc: "Lightning hits a hater and jumps to the next ones.",          lvl: "+2 jumps, +25% damage" },
+    bus:       { emoji: "🚌", name: "Campaign Bus",     desc: "A campaign bus runs over every hater in its lane.",           lvl: "More buses, +30% damage" },
   };
 
   const UPGRADES = [
@@ -83,12 +108,14 @@
     { id: "cd",     emoji: "⏱️", name: "Spin Room",           desc: "-20% special cooldown",    max: 4,  apply: p => (p.cdMult *= 0.8) },
     { id: "regen",  emoji: "🩹", name: "Healthcare Plan",     desc: "+0.6 HP/sec regeneration", max: 5,  apply: p => (p.regen += 0.6) },
     { id: "crit",   emoji: "💥", name: "Viral Clip",          desc: "+10% crit chance (2x)",    max: 5,  apply: p => (p.crit += 0.1) },
+    ...Object.entries(WEAPONS).map(([id, w]) => ({ id, emoji: w.emoji, name: w.name, desc: w.desc, lvlDesc: w.lvl, max: 5, weapon: true, apply: p => p.weapons[id]++ })),
   ];
 
   const KILL_WORDS = ["W", "+aura", "no cap", "ratio'd", "based", "sheesh", "skibidi", "fanum tax", "mewing", "cooked",
     "bussin", "sigma", "rizz", "NPC", "delulu", "it's giving", "slay", "L bozo", "touch grass", "+1000 aura", "mogged", "fr fr", "GG"];
   const HURT_WORDS = ["L", "cooked", "-aura", "not the vibe", "ratio'd", "😭"];
   const LEVEL_LINES = ["Sheesh!", "Polls are up!", "Let's go!", "Aura up!", "W!"];
+  const COMBO_LINES = ["Combo!", "On fire!", "Unstoppable!", "Aura overload!", "Sheesh, combo!"];
 
   // =====================================================================
   //  CANVAS, SCALING, SPRITES
@@ -135,11 +162,11 @@
     }
     return c;
   }
-  function drawSprite(emoji, x, y, size, rot = 0, alpha = 1) {
-    const c = sprite(emoji, size), s = c.logical;
+  function drawSprite(emoji, x, y, size, rot = 0, alpha = 1, flip = false) {
+    const c = sprite(emoji, Math.round(size)), s = c.logical;
     if (alpha !== 1) ctx.globalAlpha = alpha;
-    if (rot) {
-      ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    if (rot || flip) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
       ctx.drawImage(c, -s / 2, -s / 2, s, s);
       ctx.restore();
     } else ctx.drawImage(c, x - s / 2, y - s / 2, s, s);
@@ -195,22 +222,35 @@
 
   function newGame(ch) {
     const D = DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+    const L = id => META.level(id);
+    const maxHp = (ch.hp + L("hp") * 10) * D.playerHp;
     G = {
       ch, D, diff: settings.difficulty, runId: Date.now(),
       p: {
         x: W / 2, y: H / 2, r: 20,
-        hp: ch.hp * D.playerHp, maxHp: ch.hp * D.playerHp, speed: ch.speed, dmg: ch.dmg, fireRate: ch.fireRate,
-        fireT: 0, projCount: 1, pierce: 0, magnet: 90, orbs: 0, orbAngle: 0, regen: 0, crit: 0,
-        iframes: 0, specialT: 120, cdMult: 1, dashT: 0, dashDir: { x: 1, y: 0 }, dashHits: null, dashDmg: 0,
+        hp: maxHp, maxHp, speed: ch.speed * (1 + L("speed") * 0.04), dmg: ch.dmg * (1 + L("dmg") * 0.06), fireRate: ch.fireRate,
+        fireT: 0, projCount: 1, pierce: 0, magnet: 90 * (1 + L("magnet") * 0.15), orbs: 0, orbAngle: 0, regen: 0, crit: 0,
+        iframes: 0, specialT: 120, cdMult: 1 - L("cd") * 0.06, dashT: 0, dashDir: { x: 1, y: 0 }, dashHits: null, dashDmg: 0,
         lifesteal: 0, mvx: 0, mvy: 0, aim: 0,
+        weapons: { boomerang: 0, mic: 0, chain: 0, bus: 0 },
+        wT: { boomerang: 60, mic: 90, chain: 40, bus: 120 },
       },
+      luck: 1 + L("luck") * 0.2,
+      revives: L("revive"),
+      rerolls: 1 + L("reroll"),
       upgrades: {},
       enemies: [], bullets: [], eBullets: [], gems: [], powerups: [],
-      texts: [], particles: [], rings: [], strikes: [], decoy: null,
+      texts: [], particles: [], rings: [], strikes: [], bolts: [], buses: [], decoy: null,
       fx: { shield: 0, hype: 0, double: 0, charm: 0, slow: 0 },
-      votes: 0, xp: 0, level: 1, xpNext: 8, kills: 0, pendingLevels: 0,
-      wave: 0, toSpawn: 0, spawnT: 0, waveDelay: 0, boss: null, bossTimer: 0, bossSpawned: false,
+      votes: 0, xp: 0, level: 1, xpNext: 8, kills: 0, pendingLevels: L("start"),
+      combo: 0, comboT: 0, bestCombo: 0,
+      wave: 0, toSpawn: 0, spawnT: 0, waveDelay: 0, boss: null, bossTimer: 0, bossSpawned: false, event: null,
       endless: false, shake: 0, flash: 0, powerT: 600, time: 0, lowHpWarned: false,
+      run: {
+        code: ch.code, region: ch.region, diff: settings.difficulty, scoreMult: D.score,
+        kills: 0, elites: 0, powerups: 0, specials: 0, revives: 0, votes: 0, wave: 0, frames: 0, level: 1,
+        bestCombo: 0, weapons: 0, bosses: {}, won: false, committed: null,
+      },
     };
     $("hud-flag").src = BR.flagUrl(ch.code);
     $("hud-name").textContent = ch.name;
@@ -225,12 +265,18 @@
   function nextWave() {
     G.wave++;
     if (G.wave > WAVES.length && !G.endless) { G.wave = WAVES.length; return endGame(true); }
-    G.toSpawn = Math.round((10 + G.wave * 7) * G.D.spawn);
-    G.spawnT = 90;
+    G.run.wave = G.wave;
     const B = bossFor(G.wave);
+    G.event = null;
+    if (G.wave >= 2 && !B && Math.random() < 0.45) G.event = pick(Object.keys(EVENTS));
+    const evMul = G.event === "turnout" ? 0.7 : G.event === "rally" ? 1.5 : 1;
+    G.toSpawn = Math.round((10 + G.wave * 7) * G.D.spawn * evMul);
+    G.spawnT = 90;
     G.bossTimer = B ? 90 : 0;
     G.bossSpawned = false;
-    showBanner(`WAVE ${G.wave}`, waveName(G.wave) + (B ? " · BOSS FIGHT" : ""));
+    const ev = G.event && EVENTS[G.event];
+    showBanner(`WAVE ${G.wave}`, waveName(G.wave) + (B ? " · BOSS FIGHT" : "") + (ev ? ` · ${ev.emoji} ${ev.name}` : ""));
+    if (ev) setTimeout(() => { if (G && G.event && state === "playing") toast(`${ev.emoji} ${ev.name}: ${ev.desc}`); }, 1400);
     SND.music.setIntense(!!B);
   }
 
@@ -245,24 +291,46 @@
   function enemyPool() {
     const w = G.wave;
     const pool = ["fact", "fact", "pap", "intern"];
-    if (w >= 2) pool.push("pap", "bot");
+    if (w >= 2) pool.push("pap", "bot", "protester");
     if (w >= 3) pool.push("bot", "scandal", "reporter");
-    if (w >= 5) pool.push("reporter", "intern", "intern");
-    if (w >= 7) pool.push("scandal", "bot", "reporter");
+    if (w >= 4) pool.push("influencer", "influencer");
+    if (w >= 5) pool.push("reporter", "intern", "pollster");
+    if (w >= 6) pool.push("hacker", "hacker", "protester");
+    if (w >= 7) pool.push("scandal", "bot", "reporter", "influencer", "pollster");
     return pool;
   }
 
-  function spawnEnemy(type, at) {
+  function eliteChance() {
+    let c = 0.04 + G.wave * 0.006;
+    if (G.event === "turnout") c *= 3;
+    return Math.min(0.3, c);
+  }
+
+  function spawnEnemy(type, at, opts = {}) {
     const T = ENEMIES[type];
     const pos = at || edgePoint();
     const scale = (1 + (G.wave - 1) * 0.14) * G.D.enemyHp;
-    G.enemies.push({
+    const e = {
       ...T, type, x: pos.x, y: pos.y,
       hp: T.hp * scale, maxHp: T.hp * scale,
       dmg: T.dmg * G.D.enemyDmg * (1 + (G.wave - 1) * 0.04),
       speed: T.speed * (1 + Math.min(G.wave - 1, 15) * 0.03),
       hit: 0, shootT: rand(90, 200), orbCd: 0, wobble: Math.random() * 6,
-    });
+      mode: "walk", modeT: rand(100, 200), cdir: null, healT: rand(120, 200), tpT: rand(160, 260),
+    };
+    if (!opts.noElite && type !== "mini" && Math.random() < eliteChance()) {
+      e.elite = true;
+      e.hp *= 3.5; e.maxHp *= 3.5;
+      e.size = Math.round(e.size * 1.3); e.r *= 1.25;
+      e.dmg *= 1.3; e.xp *= 4;
+    }
+    G.enemies.push(e);
+    return e;
+  }
+
+  function spawnMob() {
+    const c = edgePoint(60);
+    for (let i = 0; i < 6; i++) spawnEnemy("protester", { x: c.x + rand(-45, 45), y: c.y + rand(-45, 45) }, { noElite: i > 0 });
   }
 
   function spawnBoss() {
@@ -270,8 +338,8 @@
     if (!B) return;
     const hp = B.hp * (1 + Math.min(W, H) / 1400) * G.D.enemyHp;
     const boss = {
-      ...B, type: "boss", boss: true, x: W / 2, y: -60, hp, maxHp: hp, dmg: B.dmg * G.D.enemyDmg,
-      hit: 0, shootT: 120, summonT: 300, spiral: 0, orbCd: 0, wobble: 0,
+      ...B, bossId: B.id, type: "boss", boss: true, x: W / 2, y: -60, hp, maxHp: hp, dmg: B.dmg * G.D.enemyDmg,
+      hit: 0, shootT: 120, summonT: 300, spiral: 0, orbCd: 0, wobble: 0, tpT: 240, burstT: 150, enraged: false,
     };
     G.enemies.push(boss);
     G.boss = boss;
@@ -316,20 +384,33 @@
     void b.offsetWidth;
     b.style.animation = "";
     clearTimeout(bannerTimer);
-    bannerTimer = setTimeout(() => b.classList.add("hidden"), 2000);
+    bannerTimer = setTimeout(() => b.classList.add("hidden"), 2200);
   }
-  let toastTimer = null;
-  function toast(msg) {
+
+  // Toasts are queued so several (e.g. achievements) can show one after another
+  const toastQueue = [];
+  let toastBusy = false;
+  function toast(msg, cls = "") {
+    toastQueue.push({ msg, cls });
+    if (!toastBusy) nextToast();
+  }
+  function nextToast() {
     const t = $("toast");
-    t.textContent = msg;
-    t.classList.remove("hidden");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.add("hidden"), 2500);
+    const item = toastQueue.shift();
+    if (!item) { toastBusy = false; t.classList.add("hidden"); return; }
+    toastBusy = true;
+    t.textContent = item.msg;
+    t.className = "toast " + item.cls;
+    setTimeout(nextToast, 2600);
   }
 
   // =====================================================================
   //  COMBAT
   // =====================================================================
+  const comboMult = () => 1 + Math.min(2, Math.floor(G.combo / 10) * 0.1);
+  const voteMult = () => (G.fx.double > 0 ? 2 : 1) * G.D.score * comboMult() *
+    (G.event === "golden" ? 2 : G.event === "rally" ? 1.5 : 1);
+
   function damageEnemy(e, dmg, showNum = false) {
     if (e.dead) return;
     let crit = false;
@@ -341,34 +422,66 @@
     if (settings.dmgNumbers && (showNum || crit)) {
       floatText(e.x + rand(-10, 10), e.y - e.r, Math.round(dmg) + (crit ? "!" : ""), crit ? "#fb923c" : "#fde047", crit ? 18 : 14, 35);
     }
+    if (e.boss && !e.enraged && e.hp > 0 && e.hp < e.maxHp * 0.5) enrage(e);
     if (e.hp <= 0) killEnemy(e);
+  }
+
+  function enrage(e) {
+    e.enraged = true;
+    e.speed *= 1.3;
+    shake(16);
+    SND.sfx("boss");
+    floatText(e.x, e.y - e.r - 20, "PHASE 2 😡", "#f87171", 28, 100);
+    SND.speak("Phase two. Now I'm angry.", { lang: "en-US", pitch: 0.4, rate: 0.9, force: true });
+    if (e.bossId === "algorithm" || e.bossId === "lizard") {
+      for (let i = 0; i < 3; i++) {
+        const m = spawnEnemy("bot", { x: e.x + rand(-60, 60), y: e.y + rand(-60, 60) }, { noElite: true });
+        m.elite = true; m.hp *= 3; m.maxHp *= 3; m.size = 46; m.r = 22; m.xp *= 4;
+      }
+    }
   }
 
   function killEnemy(e) {
     e.dead = true;
     G.kills++;
+    G.run.kills++;
     SND.sfx("kill");
-    burst(e.x, e.y, e.boss ? "#facc15" : "#a78bfa", e.boss ? 60 : 10, e.boss ? 9 : 4);
-    const n = Math.min(e.xp, 12), per = e.xp / n;
+    burst(e.x, e.y, e.boss ? "#facc15" : e.elite ? "#fde047" : "#a78bfa", e.boss ? 60 : e.elite ? 24 : 10, e.boss ? 9 : 4);
+
+    // combo
+    G.combo++;
+    G.comboT = 150;
+    if (G.combo > G.bestCombo) { G.bestCombo = G.combo; G.run.bestCombo = G.combo; }
+    if (G.combo % 25 === 0) {
+      SND.sfx("combo");
+      floatText(G.p.x, G.p.y - 60, `${G.combo} COMBO! x${comboMult().toFixed(1)} 🔥`, "#fb923c", 26, 80);
+      if (G.combo % 50 === 0) voiceOf(G.ch, pick(COMBO_LINES), false);
+    }
+
+    const n = Math.min(Math.ceil(e.xp), 14), per = e.xp / n;
     for (let i = 0; i < n; i++) {
-      const spread = n > 1 ? 14 : 0;
-      G.gems.push({ x: e.x + rand(-spread, spread), y: e.y + rand(-spread, spread), v: per, big: !!e.boss });
+      const spread = n > 1 ? 16 : 0;
+      G.gems.push({ x: e.x + rand(-spread, spread), y: e.y + rand(-spread, spread), v: per, big: !!(e.boss || e.elite) });
     }
     if (G.p.lifesteal) G.p.hp = Math.min(G.p.maxHp, G.p.hp + G.p.lifesteal);
     if (Math.random() < 0.28) floatText(e.x, e.y - 10, pick(KILL_WORDS), pick(["#4ade80", "#f472b6", "#38bdf8", "#facc15"]), 18, 55);
 
+    const dropMul = G.luck * (G.event === "news" ? 3 : 1);
     if (e.boss) {
-      G.boss = null;
-      $("boss-bar").classList.add("hidden");
+      if (e === G.boss) { G.boss = null; $("boss-bar").classList.add("hidden"); }
+      G.run.bosses[e.bossId] = (G.run.bosses[e.bossId] || 0) + 1;
       shake(30);
       flash(1);
       SND.sfx("explode");
       SND.music.setIntense(false);
       floatText(e.x, e.y - 40, `${e.name} GOT RATIO'D 💀`, "#facc15", 28, 140);
       voiceOf(G.ch, "Ratio! " + G.ch.phrase, true);
-      spawnPowerup(e.x - 30, e.y);
-      spawnPowerup(e.x + 30, e.y);
-    } else if (Math.random() < 0.035) {
+      for (let i = 0; i < 3; i++) spawnPowerup(e.x - 40 + i * 40, e.y);
+    } else if (e.elite) {
+      G.run.elites++;
+      floatText(e.x, e.y - 24, "ELITE DOWN ✨", "#fde047", 18, 60);
+      if (Math.random() < 0.35 * dropMul) spawnPowerup(e.x, e.y);
+    } else if (Math.random() < 0.035 * dropMul) {
       spawnPowerup(e.x, e.y);
     }
     if (e.splits) for (let i = 0; i < 2; i++) spawnEnemy("mini", { x: e.x + rand(-15, 15), y: e.y + rand(-15, 15) });
@@ -384,17 +497,43 @@
     SND.sfx("hurt");
     floatText(p.x, p.y - 30, pick(HURT_WORDS), "#f87171", 20, 50);
     burst(p.x, p.y, "#ef4444", 12, 5);
+    if (G.combo >= 10) floatText(p.x, p.y - 55, "COMBO LOST", "#94a3b8", 16, 50);
+    G.combo = 0;
     if (!G.lowHpWarned && p.hp > 0 && p.hp < p.maxHp * 0.25) {
       G.lowHpWarned = true;
       voiceOf(G.ch, "I'm cooked! Somebody help!", true);
     }
-    if (p.hp <= 0) { p.hp = 0; endGame(false); }
+    if (p.hp <= 0) {
+      if (G.revives > 0) return revive();
+      p.hp = 0;
+      endGame(false);
+    }
   }
 
-  function nearestEnemy(x, y, maxD = Infinity) {
+  function revive() {
+    const p = G.p;
+    G.revives--;
+    G.run.revives++;
+    p.hp = p.maxHp * 0.5;
+    p.iframes = 150;
+    G.fx.shield = 120;
+    flash(1);
+    shake(25);
+    SND.sfx("level");
+    ring(p.x, p.y, 320, "#4ade80", 40);
+    for (const e of G.enemies) {
+      const d = Math.sqrt(dist2(e, p)) || 1;
+      if (d < 320 && !e.boss) { e.x += (e.x - p.x) / d * 180; e.y += (e.y - p.y) / d * 180; }
+    }
+    G.eBullets = [];
+    floatText(p.x, p.y - 60, "SECOND TERM! ❤️‍🩹", "#4ade80", 30, 120);
+    voiceOf(G.ch, "Second term, baby! I'm back!", true);
+  }
+
+  function nearestEnemy(x, y, maxD = Infinity, exclude) {
     let bestE = null, bd = maxD * maxD;
     for (const e of G.enemies) {
-      if (e.dead) continue;
+      if (e.dead || (exclude && exclude.has(e))) continue;
       const d = (e.x - x) ** 2 + (e.y - y) ** 2;
       if (d < bd) { bd = d; bestE = e; }
     }
@@ -426,14 +565,75 @@
   }
 
   // =====================================================================
+  //  BONUS WEAPONS
+  // =====================================================================
+  function updateWeapons(dt) {
+    const p = G.p, W8 = p.weapons;
+    for (const k in p.wT) if (W8[k]) p.wT[k] -= dt;
+
+    if (W8.boomerang && p.wT.boomerang <= 0) {
+      const lvl = W8.boomerang;
+      p.wT.boomerang = Math.max(50, 100 - lvl * 8);
+      const base = aimAngle() ? aimAngle().angle : Math.random() * Math.PI * 2;
+      for (let i = 0; i < lvl; i++) {
+        const a = base + (i - (lvl - 1) / 2) * 0.5;
+        G.bullets.push({
+          x: p.x, y: p.y, vx: Math.cos(a) * 9, vy: Math.sin(a) * 9, boomer: true, t: 0, out: 34, returning: false,
+          dmg: p.dmg * 1.6 * (1 + 0.2 * (lvl - 1)), pierce: Infinity, life: 240, hits: new Set(), emoji: "🪃", size: 28,
+        });
+      }
+    }
+    if (W8.mic && p.wT.mic <= 0) {
+      const lvl = W8.mic;
+      p.wT.mic = Math.max(60, 170 - lvl * 18);
+      const R = 100 + lvl * 18, dmg = p.dmg * 1.3 * (1 + 0.3 * (lvl - 1));
+      ring(p.x, p.y, R, "#f97316", 22);
+      SND.sfx("pulse");
+      for (const e of G.enemies) if (dist2(e, p) < (R + e.r) ** 2) damageEnemy(e, dmg);
+    }
+    if (W8.chain && p.wT.chain <= 0) {
+      const lvl = W8.chain;
+      const first = nearestEnemy(p.x, p.y, 420);
+      if (first) {
+        p.wT.chain = Math.max(40, 85 - lvl * 8);
+        const jumps = 1 + lvl * 2, dmg = p.dmg * 1.4 * (1 + 0.25 * (lvl - 1));
+        const hit = new Set();
+        const pts = [{ x: p.x, y: p.y }];
+        let cur = first;
+        for (let i = 0; i < jumps && cur; i++) {
+          hit.add(cur);
+          pts.push({ x: cur.x, y: cur.y });
+          damageEnemy(cur, dmg);
+          cur = nearestEnemy(cur.x, cur.y, 170, hit);
+        }
+        G.bolts.push({ pts, life: 12 });
+        SND.sfx("zap");
+      } else p.wT.chain = 10;
+    }
+    if (W8.bus && p.wT.bus <= 0) {
+      const lvl = W8.bus;
+      p.wT.bus = Math.max(160, 420 - lvl * 45);
+      const count = lvl >= 4 ? 3 : lvl >= 2 ? 2 : 1;
+      const dmg = p.dmg * 4 * (1 + 0.3 * (lvl - 1));
+      for (let i = 0; i < count; i++) {
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const y = i === 0 ? p.y : rand(60, H - 60);
+        G.buses.push({ x: dir > 0 ? -90 : W + 90, y, dir, dmg, hits: new Set(), warn: 40 });
+      }
+      SND.sfx("horn");
+    }
+  }
+
+  // =====================================================================
   //  POWER-UPS & SPECIALS
   // =====================================================================
   function spawnPowerup(x, y) {
-    G.powerups.push({ type: pick(Object.keys(POWERUPS)), life: 900, bob: Math.random() * 6, x: x ?? rand(60, W - 60), y: y ?? rand(110, H - 70) });
+    G.powerups.push({ type: pick(Object.keys(POWERUPS)), life: 900, bob: Math.random() * 6, x: clamp(x ?? rand(60, W - 60), 30, W - 30), y: clamp(y ?? rand(110, H - 70), 30, H - 30) });
   }
 
   function applyPowerup(type) {
     const p = G.p, P = POWERUPS[type];
+    G.run.powerups++;
     SND.sfx("power");
     floatText(p.x, p.y - 40, `${P.emoji} ${P.name.toUpperCase()}!`, "#facc15", 22, 80);
     switch (type) {
@@ -453,8 +653,9 @@
   function useSpecial() {
     if (state !== "playing") return;
     const p = G.p;
-    if (p.specialT > 0) { SND.sfx("click"); return; }
+    if (p.specialT > 0) { SND.sfx("error"); return; }
     p.specialT = G.ch.cd * p.cdMult;
+    G.run.specials++;
     SND.sfx("special");
     vibrate(30);
     voiceOf(G.ch, G.ch.specialName + "!", true);
@@ -538,6 +739,7 @@
     while (G.xp >= G.xpNext) {
       G.xp -= G.xpNext;
       G.level++;
+      G.run.level = G.level;
       G.xpNext = Math.floor(G.xpNext * 1.3 + 4);
       G.pendingLevels++;
     }
@@ -545,32 +747,51 @@
   }
 
   let choices = [];
+  function rollChoices() {
+    const pool = UPGRADES.filter(u => (G.upgrades[u.id] || 0) < u.max);
+    choices = [];
+    for (let i = 0; i < 3 && pool.length; i++) choices.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  function renderChoices() {
+    const list = $("upgrade-list");
+    list.innerHTML = "";
+    choices.forEach((u, i) => {
+      const b = document.createElement("button");
+      const lvl = G.upgrades[u.id] || 0;
+      b.className = "card" + (u.weapon ? " weapon" : "");
+      const desc = u.weapon && lvl > 0 ? u.lvlDesc : u.desc;
+      b.innerHTML = `${u.weapon && lvl === 0 ? '<span class="tagnew">NEW WEAPON</span>' : ""}<div class="emoji">${u.emoji}</div>
+        <div class="name">${i + 1}. ${esc(u.name)}</div><div class="desc">${esc(desc)}</div><div class="lvl">Lv ${lvl} → ${lvl + 1} / ${u.max}</div>`;
+      b.addEventListener("click", () => chooseUpgrade(i));
+      list.appendChild(b);
+    });
+    const rb = $("reroll-btn");
+    rb.textContent = `🎲 Reroll (${G.rerolls} left)`;
+    rb.disabled = G.rerolls <= 0;
+    rb.classList.toggle("hidden", G.rerolls <= 0);
+  }
   function openLevelUp() {
+    rollChoices();
+    if (!choices.length) { G.p.hp = G.p.maxHp; G.pendingLevels = 0; return; } // everything maxed: free heal
     state = "levelup";
     IN.clearKeys();
     SND.sfx("level");
     voiceOf(G.ch, pick(LEVEL_LINES), false);
-    const pool = UPGRADES.filter(u => (G.upgrades[u.id] || 0) < u.max);
-    choices = [];
-    for (let i = 0; i < 3 && pool.length; i++) choices.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-    const list = $("upgrade-list");
-    list.innerHTML = "";
-    if (!choices.length) { // everything maxed: free heal instead
-      G.p.hp = G.p.maxHp; G.pendingLevels = 0; state = "playing"; return;
-    }
-    choices.forEach((u, i) => {
-      const b = document.createElement("button");
-      b.className = "card";
-      const lvl = G.upgrades[u.id] || 0;
-      b.innerHTML = `<div class="emoji">${u.emoji}</div><div class="name">${i + 1}. ${esc(u.name)}</div><div class="desc">${esc(u.desc)}</div><div class="lvl">Lv ${lvl} → ${lvl + 1} / ${u.max}</div>`;
-      b.addEventListener("click", () => chooseUpgrade(i));
-      list.appendChild(b);
-    });
+    renderChoices();
     showScreen("levelup");
     // small delay so a held button/tap doesn't instantly pick
+    const list = $("upgrade-list");
     list.style.pointerEvents = "none";
     setTimeout(() => { list.style.pointerEvents = ""; }, 350);
     if (IN.mode !== "touch") list.firstChild.focus();
+  }
+  function reroll() {
+    if (state !== "levelup" || G.rerolls <= 0) return;
+    G.rerolls--;
+    SND.sfx("tele");
+    rollChoices();
+    renderChoices();
+    if (IN.mode !== "touch") $("upgrade-list").firstChild.focus();
   }
 
   function chooseUpgrade(i) {
@@ -578,6 +799,7 @@
     const u = choices[i];
     u.apply(G.p);
     G.upgrades[u.id] = (G.upgrades[u.id] || 0) + 1;
+    G.run.weapons = Object.values(G.p.weapons).filter(Boolean).length;
     SND.sfx("click");
     floatText(G.p.x, G.p.y - 40, `${u.emoji} ${u.name}`, "#a78bfa", 18, 70);
     G.pendingLevels--;
@@ -593,12 +815,14 @@
   function update(dt) {
     const p = G.p;
     G.time += dt;
+    G.run.frames += dt;
     for (const k in G.fx) G.fx[k] = Math.max(0, G.fx[k] - dt);
     p.iframes = Math.max(0, p.iframes - dt);
     p.specialT = Math.max(0, p.specialT - dt);
     G.shake = Math.max(0, G.shake - dt);
     G.flash = Math.max(0, G.flash - 0.04 * dt);
     if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt / 60);
+    if (G.combo > 0) { G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; }
 
     // ---- movement ----
     const mv = IN.getMove();
@@ -619,9 +843,10 @@
     p.x = clamp(p.x, p.r, W - p.r);
     p.y = clamp(p.y, p.r, H - p.r);
 
-    // ---- shooting ----
+    // ---- shooting & weapons ----
     p.fireT -= dt * (G.fx.hype > 0 ? 2 : 1);
     if (p.fireT <= 0 && firePlayer()) p.fireT = p.fireRate;
+    updateWeapons(dt);
 
     // ---- spawning / wave flow ----
     const B = bossFor(G.wave);
@@ -630,7 +855,10 @@
       if (G.spawnT <= 0) {
         const group = Math.min(G.toSpawn, 1 + Math.floor(G.wave / 3) + (Math.random() < 0.3 ? 1 : 0));
         const pool = enemyPool();
-        for (let i = 0; i < group; i++) spawnEnemy(pick(pool));
+        for (let i = 0; i < group; i++) {
+          const t = pick(pool);
+          if (t === "protester") spawnMob(); else spawnEnemy(t);
+        }
         G.toSpawn -= group;
         G.spawnT = Math.max(14, 55 - G.wave * 4) * rand(0.7, 1.3) / G.D.spawn;
       }
@@ -640,12 +868,12 @@
     }
     if (G.bossTimer > 0) { G.bossTimer -= dt; if (G.bossTimer <= 0) spawnBoss(); }
 
-    G.powerT -= dt;
+    G.powerT -= dt * (G.event === "news" ? 3 : 1) * G.luck;
     if (G.powerT <= 0) { spawnPowerup(); G.powerT = rand(600, 900); }
 
     // ---- enemies ----
     const charmed = G.fx.charm > 0;
-    const slow = G.fx.slow > 0 ? 0.25 : 1;
+    const slow = (G.fx.slow > 0 ? 0.25 : 1) * (G.event === "debate" ? 1.3 : 1);
     const target = G.decoy || p;
     for (const e of G.enemies) {
       if (e.dead) continue;
@@ -656,6 +884,54 @@
         let sp = e.speed * slow;
         const inArena = e.x > 40 && e.x < W - 40 && e.y > 40 && e.y < H - 40;
         if (e.shooter && d < 260 && inArena && !G.decoy) sp = -sp * 0.5;
+
+        if (e.charger && inArena) {
+          e.modeT -= dt;
+          if (e.mode === "walk" && e.modeT <= 0) { e.mode = "wind"; e.modeT = 38; }
+          else if (e.mode === "wind") {
+            sp = 0;
+            if (e.modeT <= 0) { e.mode = "charge"; e.modeT = 30; e.cdir = { x: dx / d, y: dy / d }; }
+          } else if (e.mode === "charge") {
+            e.x += e.cdir.x * 7.5 * slow * dt; e.y += e.cdir.y * 7.5 * slow * dt; sp = 0;
+            if (e.modeT <= 0) { e.mode = "walk"; e.modeT = rand(110, 190); }
+          }
+        }
+        if (e.teleporter && inArena) {
+          e.tpT -= dt * slow;
+          if (e.tpT <= 0) {
+            burst(e.x, e.y, "#22d3ee", 10, 4);
+            const a = Math.random() * Math.PI * 2, r = rand(110, 170);
+            e.x = clamp(p.x + Math.cos(a) * r, 20, W - 20);
+            e.y = clamp(p.y + Math.sin(a) * r, 20, H - 20);
+            burst(e.x, e.y, "#22d3ee", 10, 4);
+            SND.sfx("tele");
+            e.tpT = rand(180, 260);
+          }
+        }
+        if (e.healer) {
+          e.healT -= dt * slow;
+          if (e.healT <= 0) {
+            e.healT = 170;
+            let healed = 0;
+            for (const o of G.enemies) {
+              if (o === e || o.boss || o.dead || o.hp >= o.maxHp) continue;
+              if (dist2(o, e) < 150 * 150) { o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.3); healed++; }
+            }
+            if (healed) { ring(e.x, e.y, 150, "#4ade80", 25); floatText(e.x, e.y - 24, "+HEAL", "#4ade80", 14, 40); }
+          }
+        }
+        if (e.boss && e.bossId === "algorithm") {
+          e.tpT -= dt * slow;
+          if (e.tpT <= 0) {
+            burst(e.x, e.y, "#f472b6", 30, 6);
+            e.x = rand(120, W - 120);
+            e.y = rand(120, H - 120);
+            if (dist2(e, p) < 200 * 200) { e.x = W - e.x; e.y = H - e.y; }
+            burst(e.x, e.y, "#f472b6", 30, 6);
+            SND.sfx("tele");
+            e.tpT = e.enraged ? 160 : 240;
+          }
+        }
         e.x += (dx / d) * sp * dt;
         e.y += (dy / d) * sp * dt;
       }
@@ -665,28 +941,15 @@
 
       const onScreen = e.x > 0 && e.x < W && e.y > 0 && e.y < H;
       if (!charmed && onScreen && (e.shooter || e.boss)) {
-        e.shootT -= dt * slow;
-        if (e.shootT <= 0) {
-          const pdx = p.x - e.x, pdy = p.y - e.y, pd = Math.hypot(pdx, pdy) || 1;
-          if (e.boss) {
-            const n = G.wave % 10 === 0 ? 18 : 12, off = (e.spiral += 0.35);
-            for (let i = 0; i < n; i++) {
-              const a = (i / n) * Math.PI * 2 + off;
-              G.eBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, life: 300, dmg: 12 * G.D.enemyDmg, emoji: e.bullet });
-            }
-            e.shootT = G.wave % 10 === 0 ? 70 : 100;
-          } else {
-            G.eBullets.push({ x: e.x, y: e.y, vx: (pdx / pd) * 3.6, vy: (pdy / pd) * 3.6, life: 240, dmg: 7 * G.D.enemyDmg, emoji: "❓" });
-            e.shootT = rand(140, 220);
-          }
-        }
+        e.shootT -= dt * Math.min(1, slow);
+        if (e.shootT <= 0) bossOrShooterFire(e);
       }
       if (e.boss && !charmed) {
-        e.summonT -= dt * slow;
+        e.summonT -= dt * Math.min(1, slow);
         if (e.summonT <= 0) {
-          for (let i = 0; i < 4; i++) spawnEnemy(pick(["intern", "pap", "fact"]), { x: e.x + rand(-50, 50), y: e.y + rand(-50, 50) });
-          e.summonT = 360;
-          floatText(e.x, e.y - e.r - 10, G.wave % 10 === 0 ? "summoning NPCs" : "*throws money*", "#4ade80", 16, 60);
+          for (let i = 0; i < 4; i++) spawnEnemy(pick(["intern", "pap", "fact", "hacker"]), { x: e.x + rand(-50, 50), y: e.y + rand(-50, 50) }, { noElite: true });
+          e.summonT = e.enraged ? 260 : 360;
+          floatText(e.x, e.y - e.r - 10, pick(["*throws money*", "summoning NPCs", "get 'em!", "fake news!"]), "#4ade80", 16, 60);
         }
       }
     }
@@ -745,9 +1008,34 @@
       }
     }
 
+    // ---- buses ----
+    for (const bus of G.buses) {
+      if (bus.warn > 0) { bus.warn -= dt; continue; }
+      bus.x += bus.dir * 15 * dt;
+      for (const e of G.enemies) {
+        if (e.dead || bus.hits.has(e)) continue;
+        if (Math.abs(e.y - bus.y) < 34 + e.r && Math.abs(e.x - bus.x) < 46 + e.r) {
+          bus.hits.add(e);
+          damageEnemy(e, bus.dmg, true);
+          if (!e.boss) e.y += (e.y >= bus.y ? 1 : -1) * 40;
+        }
+      }
+      if ((bus.dir > 0 && bus.x > W + 120) || (bus.dir < 0 && bus.x < -120)) bus.done = true;
+    }
+    G.buses = G.buses.filter(b => !b.done);
+
     // ---- player bullets ----
     for (const b of G.bullets) {
-      if (b.homing) {
+      if (b.boomer) {
+        b.t += dt;
+        if (b.t < b.out) { b.vx *= Math.pow(0.97, dt); b.vy *= Math.pow(0.97, dt); }
+        else {
+          if (!b.returning) { b.returning = true; b.hits.clear(); }
+          const dx = p.x - b.x, dy = p.y - b.y, d = Math.hypot(dx, dy) || 1;
+          b.vx = (dx / d) * 10; b.vy = (dy / d) * 10;
+          if (d < 22) b.life = 0;
+        }
+      } else if (b.homing) {
         const t = nearestEnemy(b.x, b.y, 500);
         if (t) {
           const a = Math.atan2(t.y - b.y, t.x - b.x);
@@ -757,11 +1045,11 @@
         }
       }
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      if (b.x < -30 || b.x > W + 30 || b.y < -30 || b.y > H + 30) b.life = 0;
+      if (!b.boomer && (b.x < -30 || b.x > W + 30 || b.y < -30 || b.y > H + 30)) b.life = 0;
       for (const e of G.enemies) {
         if (b.life <= 0) break;
         if (e.dead || b.hits.has(e)) continue;
-        if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < (e.r + 8) ** 2) {
+        if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < (e.r + 9) ** 2) {
           b.hits.add(e);
           damageEnemy(e, b.dmg);
           if (b.pierce-- <= 0) b.life = 0;
@@ -772,7 +1060,7 @@
 
     // ---- enemy bullets ----
     for (const b of G.eBullets) {
-      if (!charmed) { b.x += b.vx * dt * slow; b.y += b.vy * dt * slow; }
+      if (!charmed) { b.x += b.vx * dt * Math.min(1, slow); b.y += b.vy * dt * Math.min(1, slow); }
       b.life -= dt;
       if (b.x < -40 || b.x > W + 40 || b.y < -40 || b.y > H + 40) b.life = 0;
       if (b.life > 0 && dist2(b, p) < (p.r + 8) ** 2) {
@@ -782,12 +1070,15 @@
       }
     }
     G.eBullets = G.eBullets.filter(b => b.life > 0);
+    if (G.eBullets.length > 400) G.eBullets.splice(0, G.eBullets.length - 400);
     G.enemies = G.enemies.filter(e => !e.dead);
 
     // ---- votes ----
     const mag2 = p.magnet * p.magnet;
     for (const g of G.gems) {
       const d2 = dist2(g, p);
+      g.age = (g.age || 0) + dt;
+      if (g.age > 300) g.pulled = true; // uncollected votes find their way to you after ~5s
       if (g.pulled || d2 < mag2) {
         g.pulled = true;
         const d = Math.sqrt(d2) || 1, sp = 9 * dt;
@@ -796,7 +1087,9 @@
       }
       if (dist2(g, p) < (p.r + 6) ** 2) {
         g.taken = true;
-        G.votes += Math.round(g.v * 10 * (G.fx.double > 0 ? 2 : 1) * G.D.score);
+        const v = Math.round(g.v * 10 * voteMult());
+        G.votes += v;
+        G.run.votes = G.votes;
         SND.sfx("pickup");
         gainXp(g.v);
       }
@@ -818,6 +1111,55 @@
     G.texts = G.texts.filter(t => t.life > 0);
     for (const r of G.rings) { r.life -= dt; r.r = r.max * (1 - r.life / r.maxLife); }
     G.rings = G.rings.filter(r => r.life > 0);
+    for (const bo of G.bolts) bo.life -= dt;
+    G.bolts = G.bolts.filter(bo => bo.life > 0);
+  }
+
+  function bossOrShooterFire(e) {
+    const p = G.p;
+    const pdx = p.x - e.x, pdy = p.y - e.y, pd = Math.hypot(pdx, pdy) || 1;
+    const dmg = 12 * G.D.enemyDmg;
+    const shoot = (a, s = 3) => G.eBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 320, dmg, emoji: e.bullet });
+    if (!e.boss) {
+      G.eBullets.push({ x: e.x, y: e.y, vx: (pdx / pd) * 3.6, vy: (pdy / pd) * 3.6, life: 240, dmg: 7 * G.D.enemyDmg, emoji: "❓" });
+      e.shootT = rand(140, 220);
+      return;
+    }
+    const k = e.enraged ? 0.65 : 1;
+    const aim = Math.atan2(pdy, pdx);
+    switch (e.pattern) {
+      case "ring": {
+        const n = e.enraged ? 16 : 12;
+        for (let i = 0; i < n; i++) shoot((i / n) * Math.PI * 2 + e.spiral);
+        e.spiral += 0.2;
+        e.shootT = 100 * k;
+        break;
+      }
+      case "spiral": {
+        const n = 18, off = (e.spiral += 0.35);
+        for (let i = 0; i < n; i++) shoot((i / n) * Math.PI * 2 + off);
+        e.shootT = 70 * k;
+        break;
+      }
+      case "streams": {
+        const arms = e.enraged ? 4 : 3;
+        for (let i = 0; i < arms; i++) shoot(e.spiral + (i / arms) * Math.PI * 2, 3.2);
+        e.spiral += 0.09;
+        e.shootT = 7;
+        e.burstT -= 7;
+        if (e.burstT <= 0) {
+          for (let i = -2; i <= 2; i++) shoot(aim + i * 0.12, 4.5);
+          e.burstT = 150 * k;
+        }
+        break;
+      }
+      case "fan": {
+        const n = e.enraged ? 9 : 7;
+        for (let i = 0; i < n; i++) shoot(aim + (i - (n - 1) / 2) * 0.15, 4);
+        e.shootT = 80 * k;
+        break;
+      }
+    }
   }
 
   // =====================================================================
@@ -826,7 +1168,7 @@
   function drawBackground(t) {
     ctx.fillStyle = "#11112b";
     ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = "rgba(167,139,250,0.08)";
+    ctx.strokeStyle = G && G.event ? "rgba(250,204,21,0.07)" : "rgba(167,139,250,0.08)";
     ctx.lineWidth = 1;
     const off = (t * 0.3) % 48;
     ctx.beginPath();
@@ -864,7 +1206,7 @@
 
     for (const g of G.gems) {
       ctx.fillStyle = g.big ? "#facc15" : "#38bdf8";
-      ctx.beginPath(); ctx.arc(g.x, g.y, g.big ? 7 : 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(g.x, g.y, g.big ? 6.5 : 4.5, 0, Math.PI * 2); ctx.fill();
     }
 
     for (const pu of G.powerups) {
@@ -891,6 +1233,15 @@
       if (s.t < 30) drawSprite("☄️", s.x + s.t * 4, s.y - s.t * 10, 30);
     }
 
+    // bus lanes (warning) + buses
+    for (const bus of G.buses) {
+      if (bus.warn > 0) {
+        ctx.fillStyle = `rgba(249,115,22,${0.12 + 0.12 * Math.sin(G.time * 0.6)})`;
+        ctx.fillRect(0, bus.y - 34, W, 68);
+        drawSprite("⚠️", bus.dir > 0 ? 30 : W - 30, bus.y, 26);
+      } else drawSprite("🚌", bus.x, bus.y, 64, 0, 1, bus.dir > 0);
+    }
+
     if (G.decoy) {
       const dc = G.decoy;
       drawAvatar(G.ch, dc.x, dc.y, 20, 0.55 + Math.sin(G.time * 0.3) * 0.2);
@@ -901,22 +1252,49 @@
 
     const charmed = G.fx.charm > 0, slowed = G.fx.slow > 0;
     for (const e of G.enemies) {
-      drawSprite(e.emoji, e.x, e.y, e.size, Math.sin(e.wobble) * 0.12);
+      if (e.elite) {
+        ctx.fillStyle = `rgba(250,204,21,${0.22 + 0.1 * Math.sin(G.time * 0.2 + e.wobble)})`;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 8, 0, Math.PI * 2); ctx.fill();
+      }
+      if (e.boss && e.enraged) {
+        ctx.fillStyle = `rgba(239,68,68,${0.2 + 0.1 * Math.sin(G.time * 0.3)})`;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 14, 0, Math.PI * 2); ctx.fill();
+      }
+      const tpFlicker = e.teleporter && e.tpT < 40 && Math.floor(e.tpT / 4) % 2 === 0;
+      const windShake = e.mode === "wind" ? rand(-2, 2) : 0;
+      drawSprite(e.emoji, e.x + windShake, e.y, e.size, Math.sin(e.wobble) * 0.12, tpFlicker ? 0.35 : 1);
       if (e.hit > 0) {
         ctx.fillStyle = "rgba(255,255,255,0.45)";
         ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2); ctx.fill();
       }
+      if (e.mode === "wind") drawSprite("❗", e.x, e.y - e.r - 12, 18);
+      else if (e.mode === "charge") { ctx.strokeStyle = "#f87171"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.stroke(); }
       if (charmed) drawSprite("💕", e.x, e.y - e.r - 8, 16);
       else if (slowed) drawSprite("📜", e.x, e.y - e.r - 8, 14);
+      if (e.elite) drawSprite("👑", e.x, e.y - e.r - (charmed || slowed ? 22 : 8), 16);
       if (!e.boss && e.hp < e.maxHp) {
         const w = e.r * 2;
         ctx.fillStyle = "#0008"; ctx.fillRect(e.x - w / 2, e.y + e.r + 3, w, 4);
-        ctx.fillStyle = "#ef4444"; ctx.fillRect(e.x - w / 2, e.y + e.r + 3, w * Math.max(0, e.hp / e.maxHp), 4);
+        ctx.fillStyle = e.elite ? "#facc15" : "#ef4444"; ctx.fillRect(e.x - w / 2, e.y + e.r + 3, w * Math.max(0, e.hp / e.maxHp), 4);
       }
     }
 
     for (const b of G.eBullets) drawSprite(b.emoji, b.x, b.y, 18);
-    for (const b of G.bullets) drawSprite(b.emoji, b.x, b.y, b.size, b.homing ? Math.atan2(b.vy, b.vx) : 0);
+    for (const b of G.bullets) drawSprite(b.emoji, b.x, b.y, b.size, b.boomer ? G.time * 0.5 : b.homing ? Math.atan2(b.vy, b.vx) : 0);
+
+    // lightning
+    for (const bo of G.bolts) {
+      ctx.strokeStyle = `rgba(147,197,253,${bo.life / 12})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      bo.pts.forEach((pt, i) => {
+        if (i === 0) { ctx.moveTo(pt.x, pt.y); return; }
+        const prev = bo.pts[i - 1];
+        ctx.lineTo((prev.x + pt.x) / 2 + rand(-10, 10), (prev.y + pt.y) / 2 + rand(-10, 10));
+        ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.stroke();
+    }
 
     for (let i = 0; i < p.orbs; i++) {
       const a = p.orbAngle + (i / p.orbs) * Math.PI * 2;
@@ -926,7 +1304,6 @@
     ctx.strokeStyle = "rgba(56,189,248,0.08)"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.magnet, 0, Math.PI * 2); ctx.stroke();
 
-    // aim indicator
     ctx.strokeStyle = "rgba(250,204,21,0.5)"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(p.x, p.y, 30, p.aim - 0.3, p.aim + 0.3); ctx.stroke();
 
@@ -947,6 +1324,15 @@
       ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
     }
     ctx.globalAlpha = 1;
+
+    // blackout event: darkness except around the player
+    if (G.event === "blackout") {
+      const gr = ctx.createRadialGradient(p.x, p.y, 140, p.x, p.y, 300);
+      gr.addColorStop(0, "rgba(0,0,0,0)");
+      gr.addColorStop(1, "rgba(0,0,0,0.93)");
+      ctx.fillStyle = gr;
+      ctx.fillRect(-50, -50, W + 100, H + 100);
+    }
 
     ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
     for (const tx of G.texts) {
@@ -995,12 +1381,13 @@
   function updateHud() {
     const p = G.p;
     setHud("hp-fill", "width", ((p.hp / p.maxHp) * 100).toFixed(1) + "%");
-    setHud("hp-text", "text", `${Math.ceil(p.hp)}/${Math.round(p.maxHp)} HP`);
+    setHud("hp-text", "text", `${Math.ceil(p.hp)}/${Math.round(p.maxHp)} HP${G.revives ? " · ❤️‍🩹" : ""}`);
     $("hp-fill").parentElement.classList.toggle("low", p.hp < p.maxHp * 0.25);
     setHud("xp-fill", "width", ((G.xp / G.xpNext) * 100).toFixed(1) + "%");
     setHud("lvl-text", "text", `LVL ${G.level}`);
     setHud("votes", "text", G.votes.toLocaleString());
-    setHud("wave-text", "text", `Wave ${G.wave}${G.endless ? "" : "/" + WAVES.length} · ${waveName(G.wave)}`);
+    const ev = G.event ? ` · ${EVENTS[G.event].emoji} ${EVENTS[G.event].name}` : "";
+    setHud("wave-text", "text", `Wave ${G.wave}${G.endless ? "" : "/" + WAVES.length} · ${waveName(G.wave)}${ev}`);
     const cdMax = G.ch.cd * p.cdMult;
     setHud("special-cd", "height", ((p.specialT / cdMax) * 100).toFixed(0) + "%");
     $("special-btn").classList.toggle("ready", p.specialT <= 0);
@@ -1011,14 +1398,20 @@
     if (G.fx.charm > 0) fx.push(`💕 ${Math.ceil(G.fx.charm / 60)}s`);
     if (G.fx.slow > 0) fx.push(`📜 ${Math.ceil(G.fx.slow / 60)}s`);
     setHud("effects", "html", fx.map(f => `<span class="fx">${f}</span>`).join(""));
+    const showCombo = G.combo >= 5;
+    $("combo").classList.toggle("hidden", !showCombo);
+    if (showCombo) {
+      setHud("combo-text", "text", `🔥 ${G.combo} COMBO · x${comboMult().toFixed(1)}`);
+      setHud("combo-fill", "width", ((G.comboT / 150) * 100).toFixed(0) + "%");
+      $("combo").classList.toggle("hot", G.combo >= 50);
+    }
     if (G.boss) setHud("boss-fill", "width", Math.max(0, (G.boss.hp / G.boss.maxHp) * 100).toFixed(1) + "%");
   }
 
   // =====================================================================
   //  SCREENS & NAVIGATION
   // =====================================================================
-  const SCREEN_ORDER = ["settings", "levelup", "pause", "gameover", "howto", "board", "select", "menu"];
-  let settingsReturn = null;
+  const SCREEN_ORDER = ["settings", "levelup", "pause", "gameover", "howto", "board", "shop", "achievements", "select", "menu"];
   function showScreen(id) { $(id).classList.remove("hidden"); }
   function hideScreen(id) { $(id).classList.add("hidden"); }
   function hideAllScreens() { SCREEN_ORDER.forEach(hideScreen); }
@@ -1070,7 +1463,7 @@
     switch (scr.id) {
       case "settings": closeSettings(); break;
       case "pause": togglePause(); break;
-      case "select": case "howto": case "board": goTo("menu"); break;
+      case "select": case "howto": case "board": case "shop": case "achievements": toMenu(); break;
       case "gameover": toMenu(); break;
     }
   }
@@ -1078,12 +1471,15 @@
   // ---------- main menu ----------
   function renderMenu() {
     $("best-score").textContent = best.toLocaleString();
+    $("menu-funds").textContent = META.data.funds.toLocaleString();
+    $("menu-ach").textContent = `${Object.keys(META.data.ach).length}/${META.ACH.length}`;
     const featured = CHARS.filter(c => c.featured);
     const shown = [];
     while (shown.length < 6) { const c = pick(featured); if (!shown.includes(c)) shown.push(c); }
     $("title-flags").innerHTML = shown.map((c, i) => `<img src="${BR.flagUrl(c.code)}" alt="${esc(c.name)}" style="animation-delay:${i * 0.15}s">`).join("");
   }
   function toMenu() {
+    if (G && (state === "paused" || state === "levelup")) META.commitRun(G.run); // quit runs still count (only new progress is added)
     state = "menu";
     G = null;
     SND.music.setIntense(false);
@@ -1145,6 +1541,9 @@
   function openSelect() {
     SND.init();
     SND.music.start();
+    if (G && state === "over") G = null;
+    state = "menu";
+    $("hud").classList.add("hidden");
     renderTabs();
     renderGrid();
     renderDetail();
@@ -1157,7 +1556,9 @@
   function renderHowto() {
     $("legend-powerups").innerHTML = Object.values(POWERUPS).map(p => `<div>${p.emoji} <b>${p.name}</b>: ${p.desc}</div>`).join("");
     $("legend-enemies").innerHTML = Object.values(ENEMIES).filter(e => e.info).map(e => `<div>${e.emoji} <b>${e.name}</b>: ${e.info}</div>`).join("") +
-      Object.values(BOSS_DEFS).map(b => `<div>${b.emoji} <b>${esc(b.name)}</b>: boss</div>`).join("");
+      Object.values(BOSS_DEFS).map((b, i) => `<div>${b.emoji} <b>${esc(b.name)}</b>: boss, wave ${(i + 1) * 5}${i >= 2 ? " (Endless)" : ""}</div>`).join("");
+    $("legend-weapons").innerHTML = Object.values(WEAPONS).map(w => `<div>${w.emoji} <b>${w.name}</b>: ${w.desc}</div>`).join("");
+    $("legend-events").innerHTML = Object.values(EVENTS).map(e => `<div>${e.emoji} <b>${e.name}</b>: ${e.desc}</div>`).join("");
   }
   function renderBoard() {
     const board = store.get("board", []);
@@ -1167,11 +1568,44 @@
   }
   function recordRun(won) {
     const board = store.get("board", []).filter(r => r.id !== G.runId);
-    board.push({ id: G.runId, votes: G.votes, code: G.ch.code, name: G.ch.name, wave: Math.min(G.wave, G.endless ? G.wave : WAVES.length), diff: G.diff, won: won || G.endless, endless: G.endless, date: Date.now() });
+    board.push({ id: G.runId, votes: G.votes, code: G.ch.code, name: G.ch.name, wave: G.wave, diff: G.diff, won: won || G.endless, endless: G.endless, date: Date.now() });
     board.sort((a, b) => b.votes - a.votes);
     store.set("board", board.slice(0, 15));
     if (G.votes > best) { best = G.votes; store.set("best", best); }
     if (won && !G.endless) { wins[G.ch.code] = (wins[G.ch.code] || 0) + 1; store.set("wins", wins); }
+  }
+
+  // ---------- Campaign HQ ----------
+  function renderShop() {
+    $("shop-funds").textContent = META.data.funds.toLocaleString();
+    $("shop-list").innerHTML = META.SHOP.map(it => {
+      const lvl = META.level(it.id), maxed = lvl >= it.max, cost = META.cost(it.id);
+      return `<div class="shop-item${maxed ? " maxed" : ""}">
+        <div class="top"><span class="ico">${it.emoji}</span><div><div class="nm">${esc(it.name)}</div><div class="ds">${esc(it.desc)}</div></div></div>
+        <div class="pips">${Array.from({ length: it.max }, (_, i) => `<i class="${i < lvl ? "on" : ""}"></i>`).join("")}</div>
+        <button data-buy="${it.id}" ${maxed || !META.canBuy(it.id) ? "disabled" : ""}>${maxed ? "MAXED ✓" : `Buy · 💰 ${cost.toLocaleString()}`}</button>
+      </div>`;
+    }).join("");
+  }
+
+  // ---------- Achievements ----------
+  function renderAchievements() {
+    const s = META.data.stats;
+    const done = Object.keys(META.data.ach).length;
+    $("ach-count").textContent = `${done} / ${META.ACH.length}`;
+    const mins = Math.round(s.playFrames / 3600);
+    $("life-stats").innerHTML = `
+      <div>🎮 Runs: <b>${s.runs}</b></div><div>🏛️ Wins: <b>${s.wins}</b></div><div>💀 Haters: <b>${s.kills.toLocaleString()}</b></div>
+      <div>🔥 Best combo: <b>${s.bestCombo}</b></div><div>🌊 Best wave: <b>${s.bestWave}</b></div><div>💰 Funds earned: <b>${s.fundsEarned.toLocaleString()}</b></div>
+      <div>✨ Elites: <b>${s.elites}</b></div><div>🌍 Countries won: <b>${Object.keys(s.winCountries).length}</b></div><div>⏱️ Played: <b>${mins} min</b></div>`;
+    $("ach-list").innerHTML = META.ACH.map(a => {
+      const got = !!META.data.ach[a.id];
+      const [cur, goal] = a.p(s);
+      return `<div class="ach${got ? " done" : ""}"><span class="ico">${a.emoji}</span><div style="flex:1">
+        <div class="nm">${esc(a.name)}</div><div class="ds">${esc(a.desc)}</div>
+        <div class="pr"><div style="width:${Math.round((cur / goal) * 100)}%"></div></div>
+        <div class="rw">${got ? "✓ Unlocked" : `${cur.toLocaleString()} / ${goal.toLocaleString()}`} · 💰 ${a.reward}</div></div></div>`;
+    }).join("");
   }
 
   // ---------- settings ----------
@@ -1187,15 +1621,19 @@
     document.querySelectorAll("#set-aim button").forEach(b => b.classList.toggle("on", b.dataset.v === settings.aim));
   }
   function openSettings() {
-    settingsReturn = topScreen() ? topScreen().id : null;
     renderSettings();
     showScreen("settings");
     focusPrimary($("settings"));
   }
   function closeSettings() {
     hideScreen("settings");
-    const scr = topScreen();
-    focusPrimary(scr);
+    focusPrimary(topScreen());
+  }
+
+  // ---------- pause build list ----------
+  function renderBuild() {
+    const parts = UPGRADES.filter(u => G.upgrades[u.id]).map(u => `<span class="${u.weapon ? "w" : ""}">${u.emoji} ${esc(u.name)} <b>${G.upgrades[u.id]}</b></span>`);
+    $("pause-build").innerHTML = parts.join("");
   }
 
   // ---------- game flow ----------
@@ -1210,6 +1648,19 @@
     newGame(ch);
     state = "playing";
     voiceOf(ch, ch.phrase, true);
+    if (G.pendingLevels > 0) setTimeout(() => { if (G && state === "playing" && G.pendingLevels > 0) openLevelUp(); }, 600);
+    showTips();
+  }
+
+  function showTips() {
+    if (store.get("tips", false)) return;
+    store.set("tips", true);
+    const mode = IN.mode;
+    const move = mode === "touch" ? "Drag on the left side to move" : mode === "gamepad" ? "Left stick to move" : "WASD / Arrow keys to move";
+    const sp = mode === "touch" ? "Tap the big round button for your special" : mode === "gamepad" ? "RB or A for your special" : "SPACE for your special";
+    setTimeout(() => toast(`🕹️ ${move}. You shoot automatically.`), 2400);
+    setTimeout(() => toast(`🌟 ${sp}`), 5200);
+    setTimeout(() => toast("🔵 Grab votes to level up. Keep killing for 🔥 combos!"), 8000);
   }
 
   function togglePause() {
@@ -1217,7 +1668,9 @@
       state = "paused";
       IN.clearKeys();
       $("pause-stats").innerHTML = `<div>🗳️ Votes: <b>${G.votes.toLocaleString()}</b></div><div>🌊 Wave: <b>${G.wave}</b></div>
-        <div>📈 Level: <b>${G.level}</b></div><div>💀 Haters: <b>${G.kills}</b></div>`;
+        <div>📈 Level: <b>${G.level}</b></div><div>💀 Haters: <b>${G.kills}</b></div>
+        <div>🔥 Best combo: <b>${G.bestCombo}</b></div><div>🎲 Rerolls: <b>${G.rerolls}</b></div>`;
+      renderBuild();
       showScreen("pause");
       focusPrimary($("pause"));
     } else if (state === "paused") {
@@ -1232,7 +1685,9 @@
     if (state === "over") return;
     state = "over";
     IN.clearKeys();
+    if (won) G.run.won = true;
     recordRun(won);
+    const res = META.commitRun(G.run);
     SND.sfx(won ? "win" : "lose");
     SND.music.setIntense(false);
     vibrate(won ? 200 : 300);
@@ -1244,7 +1699,11 @@
     $("go-stats").innerHTML = `
       <div>🗳️ Votes: <b>${G.votes.toLocaleString()}</b></div><div>🏆 Best: <b>${best.toLocaleString()}</b></div>
       <div>🌊 Wave: <b>${G.wave}</b></div><div>💀 Haters: <b>${G.kills}</b></div>
-      <div>📈 Level: <b>${G.level}</b></div><div>🎚️ <b>${DIFFICULTY[G.diff].label}</b></div>`;
+      <div>📈 Level: <b>${G.level}</b></div><div>🔥 Best combo: <b>${G.bestCombo}</b></div>
+      <div>✨ Elites: <b>${G.run.elites}</b></div><div>🎚️ <b>${DIFFICULTY[G.diff].label}</b></div>`;
+    $("go-funds").textContent = `💰 +${res.funds.toLocaleString()} funds (total ${META.data.funds.toLocaleString()})`;
+    $("go-ach").innerHTML = res.unlocked.map(a => `<div>🏅 <b>${esc(a.name)}</b>: ${esc(a.desc)} (+💰${a.reward})</div>`).join("");
+    if (res.unlocked.length) setTimeout(() => SND.sfx("achieve"), 900);
     $("endless-btn").classList.toggle("hidden", !(won && !G.endless));
     voiceOf(G.ch, won ? `We got elected! ${G.ch.phrase}` : "Ratio'd by the voters. I'm cooked.", true);
     setTimeout(() => {
@@ -1291,13 +1750,36 @@
   const click = (id, fn) => $(id).addEventListener("click", e => { SND.init(); SND.sfx("click"); fn(e); });
 
   click("btn-play", openSelect);
+  click("btn-shop", () => { renderShop(); goTo("shop"); });
+  click("btn-ach", () => { renderAchievements(); goTo("achievements"); });
   click("btn-howto", () => { renderHowto(); goTo("howto"); });
   click("btn-board", () => { renderBoard(); goTo("board"); });
   click("btn-settings", openSettings);
   click("btn-fs", toggleFullscreen);
-  click("sel-back", () => goTo("menu"));
+  click("sel-back", toMenu);
   document.querySelectorAll(".back-btn").forEach(b => b.addEventListener("click", () => { SND.sfx("click"); back(); }));
   click("board-reset", () => { if (confirm("Reset the leaderboard and best score?")) { store.set("board", []); store.set("best", 0); best = 0; renderBoard(); } });
+
+  $("shop-list").addEventListener("click", e => {
+    const b = e.target.closest("button[data-buy]");
+    if (!b) return;
+    SND.init();
+    const id = b.dataset.buy;
+    if (META.buy(id)) {
+      SND.sfx("buy");
+      const it = META.SHOP.find(s => s.id === id);
+      toast(`${it.emoji} ${it.name} → level ${META.level(id)}`);
+    } else SND.sfx("error");
+    renderShop();
+    const nb = $("shop-list").querySelector(`[data-buy="${id}"]`);
+    if (nb && IN.mode !== "touch") (nb.disabled ? $("shop").querySelector("[data-primary]") : nb).focus();
+  });
+  click("shop-refund", () => {
+    if (!confirm("Refund every Campaign HQ upgrade? You get all the funds back.")) return;
+    const n = META.refundAll();
+    toast(`↺ Refunded 💰 ${n.toLocaleString()}`);
+    renderShop();
+  });
 
   $("sel-tabs").addEventListener("click", e => {
     const b = e.target.closest("button[data-tab]");
@@ -1363,9 +1845,10 @@
   hudBtn("hud-mute", toggleMute);
   hudBtn("hud-fs", toggleFullscreen);
 
+  click("reroll-btn", reroll);
   click("resume-btn", togglePause);
   click("pause-settings", openSettings);
-  click("restart-btn", () => startGame(G ? G.ch : selected));
+  click("restart-btn", () => { if (G) META.commitRun(G.run); startGame(G ? G.ch : selected); });
   click("quit-btn", toMenu);
   click("again-btn", () => startGame(G ? G.ch : selected));
   click("change-btn", openSelect);
@@ -1383,6 +1866,7 @@
   });
   IN.on("back", () => { if (state === "paused" || state === "menu" || state === "over") back(); });
   IN.on("choose", i => chooseUpgrade(i));
+  IN.on("reroll", reroll);
   IN.on("mute", toggleMute);
   IN.on("fullscreen", toggleFullscreen);
   IN.on("nav", navigate);
@@ -1395,12 +1879,11 @@
     else if (a && a.type === "checkbox" && src === "pad") a.click();
     else { const pr = scr.querySelector("[data-primary]") || scr.querySelector("button"); if (pr) pr.focus(); }
   });
-  IN.on("gamepad", (on, id) => toast(on ? "🎮 Controller connected" : "🎮 Controller disconnected"));
+  IN.on("gamepad", on => toast(on ? "🎮 Controller connected" : "🎮 Controller disconnected"));
   IN.on("mode", m => {
     if (m !== "touch" && state !== "playing") { const scr = topScreen(); if (scr && !scr.contains(document.activeElement)) focusPrimary(scr); }
   });
-  // Space/Enter on menus should not double-fire specials; and any key unlocks audio
-  window.addEventListener("pointerdown", () => SND.init(), { once: false, passive: true });
+  window.addEventListener("pointerdown", () => SND.init(), { passive: true });
 
   // Auto-pause when the tab/app goes to background
   document.addEventListener("visibilitychange", () => { if (document.hidden && state === "playing") togglePause(); });
@@ -1431,5 +1914,5 @@
   requestAnimationFrame(loop);
 
   // debug/test hook
-  window.__game = { get G() { return G; }, get state() { return state; }, settings, CHARS };
+  window.__game = { get G() { return G; }, get state() { return state; }, settings, CHARS, META };
 })();
