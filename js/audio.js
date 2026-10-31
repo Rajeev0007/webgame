@@ -6,7 +6,7 @@
 
   A.settings = { sfx: 0.7, music: 0.5, voice: 0.9, muted: false };
 
-  let ctx = null, master, sfxGain, musicGain, noiseBuf;
+  let ctx = null, master, sfxGain, musicGain, noiseBuf, OUT = null;
 
   A.init = () => {
     if (!ctx) {
@@ -19,6 +19,7 @@
       sfxGain.connect(master);
       musicGain = ctx.createGain();
       musicGain.connect(master);
+      OUT = sfxGain;
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -37,7 +38,7 @@
   };
 
   // ---------- primitives ----------
-  function tone(freq, dur, type, vol, endFreq, when = 0, dest = sfxGain) {
+  function tone(freq, dur, type, vol, endFreq, when = 0, dest = OUT) {
     const t = ctx.currentTime + when;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -51,7 +52,7 @@
     o.start(t);
     o.stop(t + dur + 0.05);
   }
-  function noise(dur, vol, filterFreq, when = 0, dest = sfxGain, type = "lowpass") {
+  function noise(dur, vol, filterFreq, when = 0, dest = OUT, type = "lowpass") {
     const t = ctx.currentTime + when;
     const src = ctx.createBufferSource();
     src.buffer = noiseBuf;
@@ -89,14 +90,47 @@
     achieve: () => [523, 784, 1046, 1568].forEach((f, i) => tone(f, 0.22, "triangle", 0.09, 0, i * 0.09)),
     tele:    () => tone(300, 0.2, "sine", 0.06, 1500),
     error:   () => tone(150, 0.15, "square", 0.05, 110),
+    // ---- battle royale ----
+    pistol:  () => { noise(0.12, 0.35, 2600); tone(180, 0.09, "square", 0.06, 70); },
+    smg:     () => { noise(0.07, 0.25, 3200); tone(240, 0.05, "square", 0.04, 110); },
+    ar:      () => { noise(0.14, 0.4, 2000); tone(130, 0.12, "sawtooth", 0.07, 50); },
+    dmr:     () => { noise(0.22, 0.45, 1500); tone(110, 0.2, "sawtooth", 0.08, 40); },
+    sniper:  () => { noise(0.45, 0.55, 1100); tone(80, 0.4, "sawtooth", 0.1, 30); noise(0.6, 0.12, 400, 0.08); },
+    shotgun: () => { noise(0.3, 0.55, 1300); tone(90, 0.25, "sawtooth", 0.1, 35); },
+    reload:  () => { tone(900, 0.03, "square", 0.05); tone(500, 0.04, "square", 0.05, 0, 0.18); tone(1200, 0.03, "square", 0.05, 0, 0.4); },
+    empty:   () => tone(1500, 0.02, "square", 0.04),
+    hitmark: () => tone(1800, 0.04, "square", 0.05, 1600),
+    headshot:() => { tone(2400, 0.06, "square", 0.06, 2000); tone(3000, 0.08, "sine", 0.05, 0, 0.04); },
+    knock:   () => [988, 1318, 1760].forEach((f, i) => tone(f, 0.08, "square", 0.06, 0, i * 0.05)),
+    bullethit: () => noise(0.05, 0.12, 4000, 0, OUT, "highpass"),
+    pick:    () => tone(700, 0.06, "triangle", 0.06, 1100),
+    armor:   () => { noise(0.12, 0.12, 900); tone(300, 0.1, "triangle", 0.06, 500); },
+    heal:    () => [523, 784].forEach((f, i) => tone(f, 0.15, "sine", 0.06, 0, i * 0.1)),
+    zone:    () => [440, 440, 440].forEach((f, i) => tone(f, 0.18, "square", 0.05, 0, i * 0.3)),
+    plane:   () => noise(1.5, 0.08, 180),
+    wind:    () => noise(1.0, 0.07, 900, 0, OUT, "bandpass"),
+    boom:    () => { noise(0.9, 0.6, 500); tone(60, 0.7, "sine", 0.2, 25); },
+    pin:     () => tone(2200, 0.04, "square", 0.04, 1800),
+    step:    () => noise(0.04, 0.05, 700),
+    land:    () => { noise(0.15, 0.2, 400); tone(80, 0.12, "sine", 0.1, 40); },
+    booyah:  () => [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => tone(f, 0.3, "triangle", 0.11, 0, i * 0.11)),
   };
   const last = {};
-  A.sfx = name => {
-    if (!ctx || A.settings.muted || !SFX[name]) return;
+  // vol: 0..1 (e.g. quieter for far-away gunshots)
+  A.sfx = (name, vol = 1) => {
+    if (!ctx || A.settings.muted || !SFX[name] || vol <= 0.01) return;
     const now = ctx.currentTime;
-    if (last[name] && now - last[name] < 0.04) return; // throttle spammy sounds
+    if (last[name] && now - last[name] < 0.03) return; // throttle spammy sounds
     last[name] = now;
-    SFX[name]();
+    if (vol < 0.99) {
+      const g = ctx.createGain();
+      g.gain.value = vol;
+      g.connect(sfxGain);
+      OUT = g;
+      SFX[name]();
+      OUT = sfxGain;
+      setTimeout(() => g.disconnect(), 2000);
+    } else SFX[name]();
   };
 
   // ---------- procedural music ----------

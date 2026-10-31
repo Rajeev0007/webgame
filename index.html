@@ -3,263 +3,206 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#11112b" />
+  <meta name="theme-color" content="#0b1020" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Brainrot Election 2026: pick any country's parody party and survive the campaign." />
+  <meta name="description" content="Brainrot Royale: a 3D battle royale. Drop in, loot guns, survive the zone, be the last candidate standing." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <title>Brainrot Election 2026</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Brainrot Royale 3D</title>
+  <link rel="stylesheet" href="css/br.css" />
 </head>
 <body>
-  <canvas id="game"></canvas>
+  <canvas id="gl"></canvas>
+  <canvas id="ov"></canvas>
 
-  <!-- ================= HUD ================= -->
+  <!-- ===================== IN-MATCH HUD ===================== -->
   <div id="hud" class="hidden">
-    <div class="hud-top">
-      <div class="hud-left">
-        <div class="who"><img id="hud-flag" alt="" /><span id="hud-name"></span></div>
-        <div class="bar hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
-        <div class="bar xp"><div id="xp-fill"></div><span id="lvl-text"></span></div>
-        <div id="effects" class="effects"></div>
-        <div id="combo" class="combo hidden"><span id="combo-text"></span><div class="combo-bar"><div id="combo-fill"></div></div></div>
+    <div id="topbar">
+      <div class="pill"><span>👥</span><b id="aliveN">50</b><small>alive</small></div>
+      <div class="pill"><span>💀</span><b id="killsN">0</b><small>kills</small></div>
+      <div class="pill zone-pill" id="zonePill"><span>⏳</span><b id="zoneT">--</b><small id="zoneL">zone</small></div>
+    </div>
+    <div id="feed"></div>
+    <div id="cross"><i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><b></b></div>
+    <div id="hitm" class="hidden"></div>
+    <div id="centerMsg" class="hidden"></div>
+    <div id="prompt" class="hidden"></div>
+    <div id="usebar" class="hidden"><div id="usefill"></div><span id="usetext"></span></div>
+    <div id="zoneWarn" class="hidden">⚠️ YOU ARE OUTSIDE THE SAFE ZONE</div>
+
+    <div id="bottom">
+      <div id="vitals">
+        <div class="armors"><span id="vestI" class="armor off">🦺 —</span><span id="helmI" class="armor off">⛑️ —</span></div>
+        <div class="bar hpbar"><div id="hpfill"></div><span id="hptext">100</span></div>
+        <div class="bar boostbar"><div id="boostfill"></div></div>
       </div>
-      <div class="hud-right">
-        <div class="votes">🗳️ <strong id="votes">0</strong></div>
-        <div id="wave-text" class="wave"></div>
-        <div class="hud-btns">
-          <button id="hud-pause" class="icon-btn" aria-label="Pause" title="Pause (P / Esc)">⏸</button>
-          <button id="hud-mute" class="icon-btn" aria-label="Mute" title="Mute (M)">🔊</button>
-          <button id="hud-fs" class="icon-btn fs-btn" aria-label="Fullscreen" title="Fullscreen (F)">⛶</button>
-        </div>
+      <div id="slots">
+        <button class="slot" data-slot="0"><span class="sn">1</span><span class="wname">EMPTY</span><span class="wammo"></span></button>
+        <button class="slot" data-slot="1"><span class="sn">2</span><span class="wname">EMPTY</span><span class="wammo"></span></button>
+      </div>
+      <div id="ammoBox"><b id="magT">--</b><small id="resT"></small></div>
+      <div id="items" class="desk-only">
+        <span title="Heal (H)">🩹 <b id="bandC">0</b></span>
+        <span title="Heal (H)">🧰 <b id="medC">0</b></span>
+        <span title="Drink (B)">🥤 <b id="drinkC">0</b></span>
+        <span title="Grenade (G)">💣 <b id="grenC">0</b></span>
       </div>
     </div>
-    <div id="boss-bar" class="boss-bar hidden">
-      <div class="boss-name" id="boss-name"></div>
-      <div class="bar boss"><div id="boss-fill"></div></div>
+
+    <div id="hudBtns">
+      <button id="mapBtn" class="hb" title="Map (M)">🗺️</button>
+      <button id="pauseBtn" class="hb" title="Pause (Esc)">⏸</button>
     </div>
-    <button id="special-btn" class="special-btn" aria-label="Use special">
-      <span id="special-icon">🌊</span>
-      <span id="special-name">Special</span>
-      <span class="key-hint"><span class="k-desktop">SPACE</span><span class="k-gamepad">RB / A</span></span>
-      <div id="special-cd" class="special-cd"></div>
-    </button>
-    <button id="dash-btn" class="dash-btn" aria-label="Dodge roll">
-      <span class="dash-ico">💨</span>
-      <span class="dash-name">DASH</span>
-      <span class="key-hint"><span class="k-desktop">SHIFT</span><span class="k-gamepad">B / LB</span></span>
-      <div id="dash-cd" class="special-cd"></div>
-    </button>
-  </div>
 
-  <div id="banner" class="banner hidden"></div>
-  <div id="toast" class="toast hidden"></div>
-
-  <!-- ================= MAIN MENU ================= -->
-  <div id="menu" class="screen">
-    <div class="panel">
-      <div class="title-flags" id="title-flags"></div>
-      <h1>BRAINROT<br />ELECTION <span>2026</span></h1>
-      <p class="tag">Pick any country's parody party. Dodge fact checkers. Farm aura. Survive 10 waves to get elected.</p>
-      <button id="btn-play" class="big-btn" data-primary>▶ PLAY</button>
-      <div class="btn-row">
-        <button id="btn-shop" class="big-btn secondary">🏛️ Campaign HQ</button>
-        <button id="btn-ach" class="big-btn secondary">🏅 Achievements</button>
-      </div>
-      <div class="btn-row">
-        <button id="btn-howto" class="big-btn secondary">❓ How to play</button>
-        <button id="btn-board" class="big-btn secondary">🏆 Leaderboard</button>
-      </div>
-      <div class="btn-row">
-        <button id="btn-settings" class="big-btn secondary">⚙️ Settings</button>
-        <button id="btn-fs" class="big-btn secondary fs-btn">⛶ Fullscreen</button>
-      </div>
-      <div class="best">Best: <strong id="best-score">0</strong> votes · 💰 <strong id="menu-funds">0</strong> funds · 🏅 <strong id="menu-ach">0</strong></div>
-      <p class="fine">All parties, slogans and characters are fictional parody.</p>
+    <!-- touch controls (Free Fire style) -->
+    <div id="touch" class="touch-only">
+      <button data-btn="fire" class="tb fire" aria-label="Fire">🔥</button>
+      <button data-btn="fire2" class="tb fire2" aria-label="Fire">🔥</button>
+      <button data-btn="aim" class="tb aim" aria-label="Aim">🎯</button>
+      <button data-btn="jump" class="tb jump" aria-label="Jump">⤒</button>
+      <button data-btn="crouch" class="tb crouch" aria-label="Crouch">⤓</button>
+      <button data-btn="reload" class="tb reload" aria-label="Reload">↻</button>
+      <button data-btn="grenade" class="tb gren" aria-label="Grenade">💣<em id="grenC2">0</em></button>
+      <button data-btn="heal" class="tb heal" aria-label="Heal">🩹<em id="healC2">0</em></button>
+      <button data-btn="drink" class="tb drink" aria-label="Drink">🥤<em id="drinkC2">0</em></button>
+    </div>
+    <button id="pickBtn" data-btn="interact" class="tb pick hidden">✋ PICK UP</button>
+    <button id="dropBtn" data-btn="jump" class="hidden">🪂 JUMP</button>
+    <div id="keys" class="desk-only">
+      <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>LMB</b> fire</span><span><b>RMB</b> aim</span>
+      <span><b>Shift</b> sprint</span><span><b>Space</b> jump</span><span><b>C</b> crouch</span><span><b>R</b> reload</span>
+      <span><b>E</b> pick up</span><span><b>1/2</b> weapons</span><span><b>H</b> heal</span><span><b>B</b> drink</span><span><b>G</b> grenade</span><span><b>M</b> map</span>
     </div>
   </div>
 
-  <!-- ================= CHARACTER SELECT ================= -->
-  <div id="select" class="screen hidden">
-    <div class="panel xwide select-panel">
-      <div class="select-head">
-        <button id="sel-back" class="icon-btn big" aria-label="Back">←</button>
-        <h2>Pick your candidate</h2>
-        <span class="count" id="sel-count"></span>
+  <!-- ===================== FULL MAP ===================== -->
+  <div id="mapFull" class="hidden">
+    <canvas id="mapCanvas"></canvas>
+    <button id="mapClose" class="big secondary">✕ Close map</button>
+  </div>
+
+  <!-- ===================== LOBBY ===================== -->
+  <div id="lobby" class="screen">
+    <div class="lobby-top">
+      <h1>BRAINROT <span>ROYALE</span> <em>3D</em></h1>
+      <div class="lobby-stats" id="lobbyStats"></div>
+    </div>
+    <div class="lobby-mid">
+      <div class="card candidate" id="candCard"></div>
+    </div>
+    <div class="lobby-bottom">
+      <div class="seg" id="diffSeg"></div>
+      <button id="playBtn" class="big play" data-primary>▶ PLAY · 50 PLAYERS</button>
+      <div class="lobby-row">
+        <button id="charsBtn" class="big secondary">🌍 Candidate</button>
+        <button id="setBtn" class="big secondary">⚙️ Settings</button>
+        <button id="howBtn" class="big secondary">❓ How to play</button>
+        <a id="classicBtn" class="big secondary" href="classic/">🕹️ Classic 2D</a>
       </div>
-      <div class="select-layout">
-        <div class="sel-detail" id="sel-detail"></div>
-        <div class="sel-browser">
-          <div class="sel-filters">
-            <input id="sel-search" type="search" placeholder="🔍 Search country or party..." autocomplete="off" />
-            <div class="tabs" id="sel-tabs"></div>
-          </div>
-          <div class="char-grid" id="char-grid"></div>
-        </div>
-      </div>
+      <p class="fine">All candidates and parties are fictional parody. Solo battle royale vs 49 bots.</p>
     </div>
   </div>
 
-  <!-- ================= HOW TO PLAY ================= -->
-  <div id="howto" class="screen hidden">
-    <div class="panel wide">
-      <h2>❓ How to play</h2>
-      <p>Survive 10 waves of haters to get elected. Your candidate shoots automatically. Collect 🔵 votes to level up and pick upgrades, including 4 bonus weapons. Bosses show up on waves 5 and 10, and Endless mode adds 2 more.</p>
-      <div class="legend">
-        <div>🔥 <b>Combo</b>: keep killing to build a vote multiplier, up to x3. Getting hit resets it.</div>
-        <div>✨ <b>Elites</b>: golden haters. Tougher, but they drop lots of votes and power-ups.</div>
-        <div>🎲 <b>Wave events</b>: random modifiers like Golden Hour, Debate Night or Blackout.</div>
-        <div>💰 <b>Funds</b>: earned every run. Spend them in 🏛️ Campaign HQ on permanent upgrades.</div>
-      </div>
-      <h3>Bonus weapons</h3>
-      <div class="legend" id="legend-weapons"></div>
-      <h3>Wave events</h3>
-      <div class="legend" id="legend-events"></div>
-      <div class="controls-grid">
-        <div class="ctl-card">
-          <h3>⌨️ Keyboard + Mouse</h3>
-          <ul>
-            <li><b>Move:</b> WASD or Arrow keys</li>
-            <li><b>Special:</b> Space, E, or Right-click</li>
-            <li><b>Dodge roll:</b> Shift or Q (invincible while rolling)</li>
-            <li><b>Aim:</b> automatic, or the mouse if Manual aim is on in Settings</li>
-            <li><b>Upgrades:</b> 1, 2, 3 or click</li>
-            <li><b>Pause:</b> P or Esc · <b>Mute:</b> M · <b>Fullscreen:</b> F</li>
-          </ul>
-        </div>
-        <div class="ctl-card">
-          <h3>📱 Touch</h3>
-          <ul>
-            <li><b>Move:</b> the joystick bottom-left (or drag anywhere on the left half)</li>
-            <li><b>Special:</b> big round button, bottom right</li>
-            <li><b>Dodge roll:</b> 💨 button next to it</li>
-            <li><b>Aim:</b> automatic, or drag on the right half if Manual aim is on</li>
-            <li><b>Pause:</b> ⏸ top right</li>
-          </ul>
-        </div>
-        <div class="ctl-card">
-          <h3>🎮 Gamepad</h3>
-          <ul>
-            <li><b>Move:</b> Left stick or D-pad</li>
-            <li><b>Aim:</b> Right stick (otherwise auto)</li>
-            <li><b>Special:</b> A or RB/RT</li>
-            <li><b>Dodge roll:</b> B or LB/LT</li>
-            <li><b>Pause:</b> Start · <b>Back:</b> B</li>
-            <li><b>Menus:</b> stick/D-pad + A</li>
-          </ul>
-        </div>
-      </div>
-      <h3>Power-ups</h3>
-      <div class="legend" id="legend-powerups"></div>
-      <h3>Haters</h3>
-      <div class="legend" id="legend-enemies"></div>
-      <button class="big-btn back-btn" data-primary>← Back</button>
+  <!-- ===================== CHARACTER SELECT ===================== -->
+  <div id="chars" class="screen hidden">
+    <div class="panel xwide">
+      <div class="phead"><button class="icon back" data-back>←</button><h2>Choose your candidate</h2><span class="count" id="charCount"></span></div>
+      <input id="charSearch" type="search" placeholder="🔍 Search a country or party..." autocomplete="off" />
+      <div class="tabs" id="charTabs"></div>
+      <div class="char-grid" id="charGrid"></div>
     </div>
   </div>
 
-  <!-- ================= LEADERBOARD ================= -->
-  <div id="board" class="screen hidden">
-    <div class="panel wide">
-      <h2>🏆 Leaderboard</h2>
-      <div class="board-wrap"><table class="board"><thead><tr><th>#</th><th>Candidate</th><th>Votes</th><th>Wave</th><th>Mode</th></tr></thead><tbody id="board-body"></tbody></table></div>
-      <div class="btn-row">
-        <button class="big-btn back-btn" data-primary>← Back</button>
-        <button id="board-reset" class="big-btn secondary danger">Reset</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= CAMPAIGN HQ (SHOP) ================= -->
-  <div id="shop" class="screen hidden">
-    <div class="panel wide">
-      <h2>🏛️ Campaign HQ</h2>
-      <p class="tag">Spend campaign funds on permanent upgrades. You earn funds from votes, waves, elites, wins and achievements.</p>
-      <div class="funds-big">💰 <strong id="shop-funds">0</strong> funds</div>
-      <div id="shop-list" class="shop-list"></div>
-      <div class="btn-row">
-        <button class="big-btn back-btn" data-primary>← Back</button>
-        <button id="shop-refund" class="big-btn secondary">↺ Refund all</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ACHIEVEMENTS ================= -->
-  <div id="achievements" class="screen hidden">
-    <div class="panel wide">
-      <h2>🏅 Achievements <span id="ach-count" class="count"></span></h2>
-      <div id="life-stats" class="stats wide-stats"></div>
-      <div id="ach-list" class="ach-list"></div>
-      <button class="big-btn back-btn" data-primary>← Back</button>
-    </div>
-  </div>
-
-  <!-- ================= SETTINGS ================= -->
+  <!-- ===================== SETTINGS ===================== -->
   <div id="settings" class="screen hidden">
     <div class="panel">
-      <h2>⚙️ Settings</h2>
+      <div class="phead"><button class="icon back" data-back>←</button><h2>⚙️ Settings</h2></div>
       <div class="settings">
-        <label class="row"><span>🎵 Music</span><input type="range" id="set-music" min="0" max="1" step="0.05" /></label>
-        <label class="row"><span>💥 Sound effects</span><input type="range" id="set-sfx" min="0" max="1" step="0.05" /></label>
-        <label class="row"><span>🗣️ Character voices</span><input type="range" id="set-voice" min="0" max="1" step="0.05" /></label>
-        <label class="row"><span>🔇 Mute everything</span><input type="checkbox" id="set-muted" /></label>
-        <div class="row"><span>🎯 Aim</span>
-          <div class="seg" id="set-aim"><button data-v="auto">Auto</button><button data-v="manual">Manual</button></div>
-        </div>
-        <label class="row"><span>📳 Screen shake</span><input type="checkbox" id="set-shake" /></label>
-        <label class="row"><span>⚡ Screen flashes</span><input type="checkbox" id="set-flash" /></label>
-        <label class="row"><span>🔢 Damage numbers</span><input type="checkbox" id="set-dmgnum" /></label>
-        <label class="row"><span>📲 Vibration</span><input type="checkbox" id="set-haptics" /></label>
+        <label class="row"><span>🎯 Look sensitivity</span><input type="range" id="sSens" min="0.3" max="2.5" step="0.05" /></label>
+        <label class="row"><span>🧲 Aim assist (touch & controller)</span><input type="checkbox" id="sAssist" /></label>
+        <label class="row"><span>↕️ Invert look up/down</span><input type="checkbox" id="sInvert" /></label>
+        <div class="row"><span>🖥️ Graphics</span><div class="seg" id="sQuality"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button></div></div>
+        <label class="row"><span>🎵 Music</span><input type="range" id="sMusic" min="0" max="1" step="0.05" /></label>
+        <label class="row"><span>💥 Sound effects</span><input type="range" id="sSfx" min="0" max="1" step="0.05" /></label>
+        <label class="row"><span>🗣️ Character voices</span><input type="range" id="sVoice" min="0" max="1" step="0.05" /></label>
+        <label class="row"><span>📳 Vibration</span><input type="checkbox" id="sVib" /></label>
+        <label class="row"><span>📊 Show FPS</span><input type="checkbox" id="sFps" /></label>
       </div>
-      <button id="test-voice" class="big-btn secondary">🔊 Test voice</button>
-      <button class="big-btn back-btn" data-primary>← Done</button>
+      <button class="big" data-back data-primary>✓ Done</button>
     </div>
   </div>
 
-  <!-- ================= LEVEL UP ================= -->
-  <div id="levelup" class="screen hidden">
+  <!-- ===================== HOW TO PLAY ===================== -->
+  <div id="howto" class="screen hidden">
     <div class="panel wide">
-      <h2>📈 POLLS ARE UP! Pick a buff</h2>
-      <div id="upgrade-list" class="upgrade-list"></div>
-      <button id="reroll-btn" class="big-btn secondary">🎲 Reroll</button>
-      <p class="hint">Click / tap · keys 1, 2, 3 · R to reroll · gamepad A / Y</p>
+      <div class="phead"><button class="icon back" data-back>←</button><h2>❓ How to play</h2></div>
+      <ol class="steps">
+        <li>🛫 <b>Drop:</b> everyone flies over the island. Hit <b>JUMP</b> when you're over a spot you like. Your parachute opens on its own, or press Jump again to open it early.</li>
+        <li>🔫 <b>Loot:</b> run into buildings and around crates. Grab guns (✋ pick up), ammo, 🦺 vests, ⛑️ helmets, 🩹 bandages, 🧰 med kits, 🥤 drinks and 💣 grenades. Ammo, heals and armor upgrades are picked up automatically.</li>
+        <li>🔵 <b>Zone:</b> the blue wall shrinks over time. Outside it you lose HP, and it gets worse every phase. Watch the timer and the map.</li>
+        <li>🏆 <b>Win:</b> be the last of 50 candidates standing. Headshots do extra damage, and helmets reduce it.</li>
+      </ol>
+      <div class="controls-grid">
+        <div class="ctl"><h3>📱 Phone</h3><ul>
+          <li>Left side: drag to <b>move</b> (push far to sprint)</li>
+          <li>Right side: drag to <b>look</b></li>
+          <li>🔥 <b>Fire</b>. Hold it and drag to aim while shooting. There's a 2nd fire button on the left.</li>
+          <li>🎯 Scope · ⤒ Jump · ⤓ Crouch · ↻ Reload</li>
+          <li>🩹 Heal · 🥤 Drink · 💣 Grenade · tap a weapon slot to switch</li></ul></div>
+        <div class="ctl"><h3>⌨️ Keyboard + Mouse</h3><ul>
+          <li><b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump · <b>C</b> crouch</li>
+          <li><b>Mouse</b> look (click the game to lock the mouse) · <b>LMB</b> fire · <b>RMB</b> scope</li>
+          <li><b>R</b> reload · <b>E/F</b> pick up · <b>1/2</b> or wheel: weapons · <b>X</b> holster</li>
+          <li><b>H</b> heal · <b>B</b> drink · <b>G</b> grenade · <b>M/Tab</b> map · <b>Esc</b> pause</li></ul></div>
+        <div class="ctl"><h3>🎮 Controller</h3><ul>
+          <li>Left stick move (click to sprint) · Right stick look</li>
+          <li><b>RT</b> fire · <b>LT</b> scope · <b>A</b> jump · <b>B</b> crouch</li>
+          <li><b>X</b> reload / pick up · <b>Y</b> switch weapon</li>
+          <li><b>LB</b> grenade · <b>RB</b> heal · <b>View</b> map · <b>Menu</b> pause</li></ul></div>
+      </div>
+      <h3>Weapons</h3>
+      <div class="legend" id="wLegend"></div>
+      <button class="big" data-back data-primary>Got it</button>
     </div>
   </div>
 
-  <!-- ================= PAUSE ================= -->
+  <!-- ===================== PAUSE ===================== -->
   <div id="pause" class="screen hidden">
     <div class="panel">
-      <h2>⏸ Campaign Paused</h2>
-      <div id="pause-stats" class="stats"></div>
-      <div id="pause-build" class="build"></div>
-      <button id="resume-btn" class="big-btn" data-primary>▶ RESUME</button>
-      <button id="pause-settings" class="big-btn secondary">⚙️ Settings</button>
-      <button id="restart-btn" class="big-btn secondary">↻ Restart</button>
-      <button id="quit-btn" class="big-btn secondary">⌂ Quit to menu</button>
+      <h2>⏸ Paused</h2>
+      <p class="tag" id="pauseInfo"></p>
+      <button id="resumeBtn" class="big" data-primary>▶ Resume</button>
+      <button id="pauseSet" class="big secondary">⚙️ Settings</button>
+      <button id="quitBtn" class="big secondary danger">🏳️ Leave match</button>
     </div>
   </div>
 
-  <!-- ================= GAME OVER ================= -->
-  <div id="gameover" class="screen hidden">
+  <!-- ===================== RESULTS ===================== -->
+  <div id="results" class="screen hidden">
     <div class="panel">
-      <img id="go-flag" class="go-flag" alt="" />
-      <h2 id="go-title"></h2>
-      <p id="go-sub"></p>
-      <div id="go-stats" class="stats"></div>
-      <div id="go-funds" class="funds-big"></div>
-      <div id="go-ach" class="go-ach"></div>
-      <button id="endless-btn" class="big-btn hidden">♾️ KEEP CAMPAIGNING (Endless)</button>
-      <button id="again-btn" class="big-btn" data-primary>↻ RUN AGAIN</button>
-      <button id="change-btn" class="big-btn secondary">🌍 Change candidate</button>
-      <button id="menu-btn" class="big-btn secondary">⌂ Main menu</button>
+      <div id="rPlace" class="place"></div>
+      <h2 id="rTitle"></h2>
+      <p id="rSub" class="tag"></p>
+      <div id="rStats" class="stats"></div>
+      <button id="specBtn" class="big secondary hidden">👁️ Spectate</button>
+      <button id="againBtn" class="big" data-primary>▶ Play again</button>
+      <button id="lobbyBtn" class="big secondary">⌂ Lobby</button>
     </div>
   </div>
+  <div id="specBar" class="hidden"><span id="specName"></span><button id="specNext" class="big secondary">Next ▶</button><button id="specLeave" class="big">Results</button></div>
+
+  <div id="toast" class="hidden"></div>
+  <div id="loading" class="screen"><div class="panel"><h2>Building the island…</h2><p class="tag" id="loadMsg">Loading</p></div></div>
 
   <script src="js/countries.js"></script>
-  <script src="js/meta.js"></script>
   <script src="js/audio.js"></script>
-  <script src="js/input.js"></script>
-  <script src="js/game.js"></script>
+  <script src="js/br/engine.js"></script>
+  <script src="js/br/data.js"></script>
+  <script src="js/br/world.js"></script>
+  <script src="js/br/character.js"></script>
+  <script src="js/br/input.js"></script>
+  <script src="js/br/game.js"></script>
 </body>
 </html>

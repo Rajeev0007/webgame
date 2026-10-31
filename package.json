@@ -1,12 +1,12 @@
 {
   "name": "brainrot-election-2026",
-  "version": "1.2.0",
-  "description": "Browser survival game: pick any country's parody party and survive the campaign.",
+  "version": "2.0.0",
+  "description": "Brainrot Royale 3D: a browser battle royale (50 players, plane drop, loot, shrinking zone) plus the classic 2D survival mode.",
   "private": true,
   "scripts": {
     "start": "npx --yes serve -l 8080 .",
     "dev": "npx --yes serve -l 8080 .",
-    "check": "node --check js/countries.js && node --check js/meta.js && node --check js/audio.js && node --check js/input.js && node --check js/game.js"
+    "check": "for f in js/*.js js/br/*.js classic/js/*.js; do node --check \"$f\" || exit 1; done && echo all scripts OK"
   },
   "license": "MIT"
 }
