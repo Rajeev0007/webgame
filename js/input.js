@@ -13,6 +13,10 @@
     toLogical: (x, y) => ({ x, y }),
   });
   const JOY_R = 55;
+  // resting spot of the on-screen joystick (bottom-left, above the safe area)
+  IN.joyHome = { x: 100, y: window.innerHeight - 130 };
+  const placeHome = () => { IN.joyHome.x = 100; IN.joyHome.y = window.innerHeight - 130; };
+  window.addEventListener("resize", placeHome);
 
   // ---------- tiny event bus ----------
   const handlers = {};
@@ -51,6 +55,7 @@
     if (e.code === "KeyM") emit("mute");
     if (e.code === "KeyF") emit("fullscreen");
     if (e.code === "KeyR") emit("reroll");
+    if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyQ" || e.code === "KeyL") emit("dash");
     if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") emit("choose", Number(e.code.slice(-1)) - 1);
     if (e.code === "Enter" && !(document.activeElement && document.activeElement.tagName === "BUTTON")) emit("confirm");
   });
@@ -78,7 +83,11 @@
         const left = t.clientX < window.innerWidth * 0.5;
         const stick = left || !IN.manualAimTouch ? IN.joy : IN.aimJoy;
         if (stick.active) continue;
-        Object.assign(stick, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, x: t.clientX, y: t.clientY });
+        // touching near the visible joystick grabs it in place; touching elsewhere makes a floating stick
+        const h = IN.joyHome;
+        const fixed = stick === IN.joy && Math.hypot(t.clientX - h.x, t.clientY - h.y) < JOY_R * 2.2;
+        const ox = fixed ? h.x : t.clientX, oy = fixed ? h.y : t.clientY;
+        Object.assign(stick, { active: true, fixed, id: t.identifier, ox, oy, x: t.clientX, y: t.clientY });
       }
     }, { passive: false });
     canvas.addEventListener("touchmove", e => {
@@ -89,7 +98,7 @@
             s.x = t.clientX; s.y = t.clientY;
             // floating stick: drag the base along if the finger goes far
             const dx = s.x - s.ox, dy = s.y - s.oy, d = Math.hypot(dx, dy);
-            if (d > JOY_R * 1.6) { s.ox = s.x - dx / d * JOY_R * 1.6; s.oy = s.y - dy / d * JOY_R * 1.6; }
+            if (!s.fixed && d > JOY_R * 1.6) { s.ox = s.x - dx / d * JOY_R * 1.6; s.oy = s.y - dy / d * JOY_R * 1.6; }
           }
         }
       }
@@ -126,9 +135,10 @@
 
     // special first: it only acts while playing, so confirming a menu/upgrade never also fires it
     if (edge(0)) { emit("special", "pad-a"); emit("confirm", "pad"); }
-    if (edge(1)) emit("back");
+    if (edge(1)) { emit("back"); emit("dash"); }
     if (edge(3)) emit("reroll");
-    if (edge(4) || edge(5) || edge(6) || edge(7) || edge(2)) emit("special", "pad");
+    if (edge(5) || edge(7) || edge(2)) emit("special", "pad");
+    if (edge(4) || edge(6)) emit("dash");
     if (edge(9) || edge(8)) emit("pause");
 
     // menu navigation with stick / d-pad (with key-repeat style timing)

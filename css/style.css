@@ -460,3 +460,27 @@ body.mode-gamepad button:focus, body.mode-gamepad input:focus { outline: 3px sol
 .card.weapon { border-color: #f97316; }
 .card .tagnew { font-size: 11px; background: #f97316; color: #fff; border-radius: 6px; padding: 1px 6px; font-weight: bold; }
 .toast.ach { border-color: var(--gold); background: #422006ee; }
+
+/* ================= Dash button ================= */
+.dash-btn {
+  pointer-events: auto;
+  position: absolute;
+  right: calc(112px + var(--safe-r)); bottom: calc(18px + var(--safe-b));
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 3px solid #38bdf8;
+  background: radial-gradient(circle, #0e7490, #083344);
+  color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+.dash-btn .dash-ico { font-size: 22px; line-height: 1; position: relative; z-index: 1; }
+.dash-btn .dash-name { font-size: 9px; font-weight: 900; position: relative; z-index: 1; }
+.dash-btn .key-hint { font-size: 8px; color: #7dd3fc; position: relative; z-index: 1; }
+.dash-btn.ready { box-shadow: 0 0 14px #38bdf8aa; }
+.dash-btn:active { transform: scale(0.92); }
+body.mode-touch .dash-btn { width: 80px; height: 80px; right: calc(140px + var(--safe-r)); bottom: calc(40px + var(--safe-b)); }
+body.mode-touch .dash-btn .dash-ico { font-size: 28px; }
+/* on touch, stack the special a bit higher so both thumbs reach comfortably */
+body.mode-touch .special-btn { bottom: calc(70px + var(--safe-b)); }
