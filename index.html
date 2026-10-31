@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Brainrot Royale: a 3D battle royale. Drop in, loot guns, survive the zone, be the last candidate standing." />
+  <meta name="description" content="Brainrot Royale 3D: battle royale, Clash Squad 4v4, ranked, skills, pets, outfits. Drop in and get the Booyah." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <title>Brainrot Royale 3D</title>
@@ -20,21 +20,30 @@
   <!-- ===================== IN-MATCH HUD ===================== -->
   <div id="hud" class="hidden">
     <div id="topbar">
-      <div class="pill"><span>👥</span><b id="aliveN">50</b><small>alive</small></div>
+      <div class="pill"><span>👥</span><b id="aliveN">50</b><small id="aliveL">alive</small></div>
       <div class="pill"><span>💀</span><b id="killsN">0</b><small>kills</small></div>
       <div class="pill zone-pill" id="zonePill"><span>⏳</span><b id="zoneT">--</b><small id="zoneL">zone</small></div>
     </div>
+    <div id="csBar" class="hidden">
+      <div class="cs-side blue"><div class="dots" id="csDotsA"></div><b id="csA">0</b></div>
+      <div class="cs-mid"><b id="csTime">0:00</b><small id="csObj">Objective: 4</small></div>
+      <div class="cs-side orange"><b id="csB">0</b><div class="dots" id="csDotsB"></div></div>
+    </div>
+    <div id="zoneBanner" class="hidden"></div>
+    <div id="teamList"></div>
     <div id="feed"></div>
     <div id="cross"><i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><b></b></div>
     <div id="hitm" class="hidden"></div>
+    <div id="killBanner" class="hidden"></div>
     <div id="centerMsg" class="hidden"></div>
     <div id="prompt" class="hidden"></div>
     <div id="usebar" class="hidden"><div id="usefill"></div><span id="usetext"></span></div>
+    <div id="knockBar" class="hidden"><span>🩸 KNOCKED · crawl to cover! Teammates can revive you</span><div class="bar"><div id="bleedFill"></div></div></div>
     <div id="zoneWarn" class="hidden">⚠️ YOU ARE OUTSIDE THE SAFE ZONE</div>
 
     <div id="bottom">
       <div id="vitals">
-        <div class="armors"><span id="vestI" class="armor off">🦺 —</span><span id="helmI" class="armor off">⛑️ —</span></div>
+        <div class="armors"><span id="vestI" class="armor off">🦺 —</span><span id="helmI" class="armor off">⛑️ —</span><span id="petI" class="armor"></span></div>
         <div class="bar hpbar"><div id="hpfill"></div><span id="hptext">100</span></div>
         <div class="bar boostbar"><div id="boostfill"></div></div>
       </div>
@@ -48,15 +57,24 @@
         <span title="Heal (H)">🧰 <b id="medC">0</b></span>
         <span title="Drink (B)">🥤 <b id="drinkC">0</b></span>
         <span title="Grenade (G)">💣 <b id="grenC">0</b></span>
+        <span title="Gloo wall (T)">🧊 <b id="glooC">0</b></span>
       </div>
     </div>
 
     <div id="hudBtns">
+      <button id="scoreBtn" class="hb" title="Scoreboard (Tab)">📋</button>
+      <button id="shopBtn" class="hb hidden" title="Shop (Y)">🛒</button>
+      <button id="emoteBtn" class="hb" title="Emote (Z)">😀</button>
       <button id="mapBtn" class="hb" title="Map (M)">🗺️</button>
       <button id="pauseBtn" class="hb" title="Pause (Esc)">⏸</button>
     </div>
+    <div id="emoteWheel" class="hidden"></div>
 
-    <!-- touch controls (Free Fire style) -->
+    <!-- skill + gloo: on every device (clickable on desktop too) -->
+    <button id="skillBtn" data-btn="skill" class="tb skill"><span id="skillIco">💚</span><small>SKILL</small><i id="skillCd"></i></button>
+    <button id="glooBtn" data-btn="gloo" class="tb gloo">🧊<em id="glooC2">0</em></button>
+
+    <!-- touch controls -->
     <div id="touch" class="touch-only">
       <button data-btn="fire" class="tb fire" aria-label="Fire">🔥</button>
       <button data-btn="fire2" class="tb fire2" aria-label="Fire">🔥</button>
@@ -69,11 +87,26 @@
       <button data-btn="drink" class="tb drink" aria-label="Drink">🥤<em id="drinkC2">0</em></button>
     </div>
     <button id="pickBtn" data-btn="interact" class="tb pick hidden">✋ PICK UP</button>
+    <button id="reviveBtn" data-btn="revive" class="tb revive hidden">➕ HOLD TO REVIVE</button>
     <button id="dropBtn" data-btn="jump" class="hidden">🪂 JUMP</button>
     <div id="keys" class="desk-only">
       <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>LMB</b> fire</span><span><b>RMB</b> aim</span>
       <span><b>Shift</b> sprint</span><span><b>Space</b> jump</span><span><b>C</b> crouch</span><span><b>R</b> reload</span>
-      <span><b>E</b> pick up</span><span><b>1/2</b> weapons</span><span><b>H</b> heal</span><span><b>B</b> drink</span><span><b>G</b> grenade</span><span><b>M</b> map</span>
+      <span><b>E</b> pick up / hold revive</span><span><b>Q</b> skill</span><span><b>T</b> gloo</span><span><b>G</b> grenade</span>
+      <span><b>H</b> heal</span><span><b>B</b> drink</span><span><b>Z</b> emote</span><span><b>Tab</b> scores</span><span><b>M</b> map</span>
+    </div>
+
+    <!-- scoreboard (Tab / 📋) -->
+    <div id="scoreboard" class="hidden">
+      <div class="sb-head"><div class="sb-team blue" id="sbNameA">YOUR SQUAD</div><b id="sbScoreA">0</b><span class="vs">VS</span><b id="sbScoreB">0</b><div class="sb-team orange" id="sbNameB">ENEMIES</div></div>
+      <div class="sb-cols"><div class="sb-list" id="sbListA"></div><div class="sb-list" id="sbListB"></div></div>
+      <div class="sb-foot">Tap / release Tab to close</div>
+    </div>
+
+    <!-- Clash Squad buy menu -->
+    <div id="buyMenu" class="hidden">
+      <div class="buy-head"><h3>🛒 SHOP</h3><span>🪙 <b id="buyCoins">0</b></span><span id="buyTime"></span><button id="buyClose" class="icon">✕</button></div>
+      <div class="buy-grid" id="buyGrid"></div>
     </div>
   </div>
 
@@ -84,28 +117,90 @@
   </div>
 
   <!-- ===================== LOBBY ===================== -->
-  <div id="lobby" class="screen">
-    <div class="lobby-top">
-      <h1>BRAINROT <span>ROYALE</span> <em>3D</em></h1>
-      <div class="lobby-stats" id="lobbyStats"></div>
+  <div id="lobby" class="screen lobby hidden">
+    <div class="ltop">
+      <button id="profBtn" class="prof">
+        <img id="lAvatar" alt="" />
+        <div class="pinfo"><b id="lName">Player</b><div class="lvl"><span id="lLvl">Lv.1</span><i><em id="lXp"></em></i></div></div>
+        <span id="lRank" class="rk"></span>
+      </button>
+      <div class="cur"><span>🪙 <b id="lCoins">0</b></span><span>💎 <b id="lDia">0</b></span><button id="setBtn" class="icon" title="Settings">⚙️</button></div>
     </div>
-    <div class="lobby-mid">
-      <div class="card candidate" id="candCard"></div>
+    <div class="lside">
+      <button data-go="store" class="side">🛒<span>Store</span></button>
+      <button data-go="skills" class="side">🦸<span>Character</span></button>
+      <button data-go="pets" class="side">🐾<span>Pet</span></button>
+      <button data-go="vault" class="side">👕<span>Vault</span></button>
+      <button data-go="chars" class="side">🌍<span>Candidate</span></button>
+      <button data-go="daily" class="side">🎁<span>Daily</span><i id="dailyDot" class="dot hidden"></i></button>
+      <button data-go="profile" class="side">🪪<span>Profile</span></button>
+      <button data-go="howto" class="side">❓<span>Help</span></button>
+      <a href="classic/" class="side">🕹️<span>Classic 2D</span></a>
     </div>
-    <div class="lobby-bottom">
-      <div class="seg" id="diffSeg"></div>
-      <button id="playBtn" class="big play" data-primary>▶ PLAY · 50 PLAYERS</button>
-      <div class="lobby-row">
-        <button id="charsBtn" class="big secondary">🌍 Candidate</button>
-        <button id="setBtn" class="big secondary">⚙️ Settings</button>
-        <button id="howBtn" class="big secondary">❓ How to play</button>
-        <a id="classicBtn" class="big secondary" href="classic/">🕹️ Classic 2D</a>
+    <div class="lcand" id="lCand"></div>
+    <div class="lbottom">
+      <div class="emotes" id="lEmotes"></div>
+      <div class="startbox">
+        <button id="modeCard" class="modecard"><small>MODE ▸ tap to change</small><b id="mName">CLASSIC</b><span id="mSub">Squad</span></button>
+        <div class="seg" id="teamSeg"><button data-t="1">Solo</button><button data-t="2">Duo</button><button data-t="4">Squad</button></div>
+        <div class="seg" id="diffSeg"></div>
+        <button id="playBtn" class="big start" data-primary>START</button>
       </div>
-      <p class="fine">All candidates and parties are fictional parody. Solo battle royale vs 49 bots.</p>
+    </div>
+    <p class="fine lfine">All candidates, parties and items are fictional parody. Opponents and teammates are bots.</p>
+  </div>
+
+  <!-- ===================== MODE SELECT ===================== -->
+  <div id="modes" class="screen hidden">
+    <div class="modes-wrap">
+      <div class="phead"><button class="icon back" data-back>←</button><h2>Select Mode</h2></div>
+      <div class="mode-grid" id="modeGrid"></div>
     </div>
   </div>
 
-  <!-- ===================== CHARACTER SELECT ===================== -->
+  <!-- ===================== STORE / VAULT / PETS ===================== -->
+  <div id="store" class="screen hidden right-panel">
+    <div class="panel store">
+      <div class="phead"><button class="icon back" data-back>←</button><h2 id="storeTitle">Store</h2><span class="cur small">🪙 <b class="sCoins"></b> · 💎 <b class="sDia"></b></span></div>
+      <div class="tabs" id="storeTabs"></div>
+      <div class="shop-grid" id="storeGrid"></div>
+    </div>
+  </div>
+
+  <!-- ===================== CHARACTER SKILLS ===================== -->
+  <div id="skills" class="screen hidden right-panel">
+    <div class="panel store">
+      <div class="phead"><button class="icon back" data-back>←</button><h2>Character Skills</h2><span class="cur small">🪙 <b class="sCoins"></b> · 💎 <b class="sDia"></b></span></div>
+      <div class="skill-slots" id="skillSlots"></div>
+      <h3>Active skill (SKILL button)</h3>
+      <div class="shop-grid" id="activeGrid"></div>
+      <h3>Passive skills (pick 2)</h3>
+      <div class="shop-grid" id="passiveGrid"></div>
+    </div>
+  </div>
+
+  <!-- ===================== PROFILE ===================== -->
+  <div id="profile" class="screen hidden profile-screen">
+    <div class="prof-left">
+      <div class="phead"><button class="icon back" data-back>←</button><h2>PROFILE</h2></div>
+      <div class="ptabs" id="profTabs">
+        <button data-p="overview" class="on">OVERVIEW</button><button data-p="br">BR STATS</button><button data-p="cs">CS STATS</button><button data-p="history">HISTORY</button>
+      </div>
+      <div class="pbody" id="profBody"></div>
+    </div>
+    <div class="prof-card" id="profCard"></div>
+  </div>
+
+  <!-- ===================== DAILY REWARD ===================== -->
+  <div id="daily" class="screen hidden">
+    <div class="panel wide">
+      <div class="phead"><button class="icon back" data-back>←</button><h2>🎁 Daily Login Rewards</h2></div>
+      <div class="daily-grid" id="dailyGrid"></div>
+      <button id="claimBtn" class="big" data-primary>CLAIM</button>
+    </div>
+  </div>
+
+  <!-- ===================== CANDIDATE (COUNTRY) SELECT ===================== -->
   <div id="chars" class="screen hidden">
     <div class="panel xwide">
       <div class="phead"><button class="icon back" data-back>←</button><h2>Choose your candidate</h2><span class="count" id="charCount"></span></div>
@@ -120,6 +215,7 @@
     <div class="panel">
       <div class="phead"><button class="icon back" data-back>←</button><h2>⚙️ Settings</h2></div>
       <div class="settings">
+        <label class="row"><span>🏷️ Player name</span><input id="sName" type="text" maxlength="16" /></label>
         <label class="row"><span>🎯 Look sensitivity</span><input type="range" id="sSens" min="0.3" max="2.5" step="0.05" /></label>
         <label class="row"><span>🧲 Aim assist (touch & controller)</span><input type="checkbox" id="sAssist" /></label>
         <label class="row"><span>↕️ Invert look up/down</span><input type="checkbox" id="sInvert" /></label>
@@ -130,6 +226,7 @@
         <label class="row"><span>📳 Vibration</span><input type="checkbox" id="sVib" /></label>
         <label class="row"><span>📊 Show FPS</span><input type="checkbox" id="sFps" /></label>
       </div>
+      <button id="resetBtn" class="big secondary danger">Reset all progress</button>
       <button class="big" data-back data-primary>✓ Done</button>
     </div>
   </div>
@@ -139,28 +236,28 @@
     <div class="panel wide">
       <div class="phead"><button class="icon back" data-back>←</button><h2>❓ How to play</h2></div>
       <ol class="steps">
-        <li>🛫 <b>Drop:</b> everyone flies over the island. Hit <b>JUMP</b> when you're over a spot you like. Your parachute opens on its own, or press Jump again to open it early.</li>
-        <li>🔫 <b>Loot:</b> run into buildings and around crates. Grab guns (✋ pick up), ammo, 🦺 vests, ⛑️ helmets, 🩹 bandages, 🧰 med kits, 🥤 drinks and 💣 grenades. Ammo, heals and armor upgrades are picked up automatically.</li>
-        <li>🔵 <b>Zone:</b> the blue wall shrinks over time. Outside it you lose HP, and it gets worse every phase. Watch the timer and the map.</li>
-        <li>🏆 <b>Win:</b> be the last of 50 candidates standing. Headshots do extra damage, and helmets reduce it.</li>
+        <li>🪂 <b>Battle Royale (Classic / Ranked):</b> jump from the plane, loot guns and gear, stay inside the shrinking zone, and be the last squad standing for the <b>BOOYAH</b>. Squad and Duo come with bot teammates.</li>
+        <li>⚔️ <b>Clash Squad:</b> 4v4 rounds in a small arena. Each round starts with a 10 s buy phase (🛒). Earn coins from kills and rounds, and win 4 rounds to take the match.</li>
+        <li>🩸 <b>Knock &amp; revive:</b> in team modes a downed player crawls and bleeds out. Stand next to a knocked teammate and <b>hold</b> E / ➕ REVIVE to bring them back.</li>
+        <li>🧊 <b>Gloo walls:</b> instant cover that blocks bullets until it's shot down. Use them!</li>
+        <li>🦸 <b>Skills &amp; pets:</b> equip 1 active skill (SKILL button), 2 passive skills and a pet in the lobby. Buy more with 🪙 coins and 💎 diamonds earned by playing.</li>
+        <li>🏆 <b>Ranks:</b> Ranked modes give rank points: Bronze → Silver → Gold → Platinum → Diamond → Heroic → Grandmaster.</li>
       </ol>
       <div class="controls-grid">
-        <div class="ctl"><h3>📱 Phone</h3><ul>
-          <li>Left side: drag to <b>move</b> (push far to sprint)</li>
-          <li>Right side: drag to <b>look</b></li>
-          <li>🔥 <b>Fire</b>. Hold it and drag to aim while shooting. There's a 2nd fire button on the left.</li>
-          <li>🎯 Scope · ⤒ Jump · ⤓ Crouch · ↻ Reload</li>
+        <div class="ctl"><h3>📱 Phone (landscape)</h3><ul>
+          <li>Left side: drag to <b>move</b> (push far to sprint) · Right side: drag to <b>look</b></li>
+          <li>🔥 <b>Fire</b> (drag it to aim while shooting) · 2nd 🔥 on the left</li>
+          <li>🎯 Scope · ⤒ Jump · ⤓ Crouch · ↻ Reload · SKILL · 🧊 Gloo</li>
           <li>🩹 Heal · 🥤 Drink · 💣 Grenade · tap a weapon slot to switch</li></ul></div>
         <div class="ctl"><h3>⌨️ Keyboard + Mouse</h3><ul>
           <li><b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump · <b>C</b> crouch</li>
-          <li><b>Mouse</b> look (click the game to lock the mouse) · <b>LMB</b> fire · <b>RMB</b> scope</li>
-          <li><b>R</b> reload · <b>E/F</b> pick up · <b>1/2</b> or wheel: weapons · <b>X</b> holster</li>
-          <li><b>H</b> heal · <b>B</b> drink · <b>G</b> grenade · <b>M/Tab</b> map · <b>Esc</b> pause</li></ul></div>
+          <li><b>Mouse</b> look (click to lock) · <b>LMB</b> fire · <b>RMB</b> scope</li>
+          <li><b>R</b> reload · <b>E</b> pick up / hold to revive · <b>Q</b> skill · <b>T</b> gloo</li>
+          <li><b>H</b> heal · <b>B</b> drink · <b>G</b> grenade · <b>Z</b> emote · <b>Y</b> shop · <b>Tab</b> scores · <b>M</b> map</li></ul></div>
         <div class="ctl"><h3>🎮 Controller</h3><ul>
-          <li>Left stick move (click to sprint) · Right stick look</li>
-          <li><b>RT</b> fire · <b>LT</b> scope · <b>A</b> jump · <b>B</b> crouch</li>
-          <li><b>X</b> reload / pick up · <b>Y</b> switch weapon</li>
-          <li><b>LB</b> grenade · <b>RB</b> heal · <b>View</b> map · <b>Menu</b> pause</li></ul></div>
+          <li>Left stick move · Right stick look · <b>RT</b> fire · <b>LT</b> scope</li>
+          <li><b>A</b> jump · <b>B</b> crouch · <b>X</b> reload / pick up / revive · <b>Y</b> switch</li>
+          <li><b>LB</b> grenade · <b>RB</b> heal · D-pad ◀ skill · ▶ gloo</li></ul></div>
       </div>
       <h3>Weapons</h3>
       <div class="legend" id="wLegend"></div>
@@ -186,6 +283,7 @@
       <h2 id="rTitle"></h2>
       <p id="rSub" class="tag"></p>
       <div id="rStats" class="stats"></div>
+      <div id="rRewards" class="rewards"></div>
       <button id="specBtn" class="big secondary hidden">👁️ Spectate</button>
       <button id="againBtn" class="big" data-primary>▶ Play again</button>
       <button id="lobbyBtn" class="big secondary">⌂ Lobby</button>
@@ -200,9 +298,15 @@
   <script src="js/audio.js"></script>
   <script src="js/br/engine.js"></script>
   <script src="js/br/data.js"></script>
+  <script src="js/br/progress.js"></script>
   <script src="js/br/world.js"></script>
   <script src="js/br/character.js"></script>
   <script src="js/br/input.js"></script>
+  <script src="js/br/core.js"></script>
+  <script src="js/br/combat.js"></script>
+  <script src="js/br/modes.js"></script>
+  <script src="js/br/ai.js"></script>
   <script src="js/br/game.js"></script>
+  <script src="js/br/ui.js"></script>
 </body>
 </html>

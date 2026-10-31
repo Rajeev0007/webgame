@@ -1,8 +1,25 @@
 # 🪂 Brainrot Royale 3D
 
-A **3D third-person battle royale** that runs in the browser on phones, tablets and PCs. **50 players** fly over an island and parachute down. You loot guns, armor and med kits, and survive a **shrinking zone** until you're the last candidate standing. Your opponents are 49 bots.
+A **3D third-person battle royale** that runs in the browser on phones, tablets and PCs. **48–50 players** fly over an island and parachute down. You loot guns, armor and med kits, and survive a **shrinking zone** until you're the last squad standing. Every other player is a bot.
 
 You play as a parody candidate from any of **197 countries**, each with their own flag-pattern suit, voice line and party.
+
+### 🆕 Modes and features
+- **Mode select:** 🏆 Ranked Game, 🪂 Classic (Solo / Duo / Squad), ⚔️ Clash Squad 4v4, 🏅 Clash Squad Ranked, 🎯 Training.
+- **Squads:** bot teammates drop with you, follow you, loot, fight and **revive** you. Downed players are **knocked** and crawl while they bleed out. Hold E (or ➕ REVIVE) to pick a teammate up. A team list with HP bars sits under the minimap.
+- **Clash Squad:** 4v4 rounds in a town arena, first to 4 wins.
+  - Each round starts with a 10 s **buy phase**. The 🛒 shop sells guns, vests, helmets, gloo walls, grenades and heals, paid for with round coins.
+  - Top score bar (`2 | 0:48 | 1 · Objective: 4`), a closing zone each round, and a **K / D / DMG scoreboard**.
+- **🧊 Gloo walls:** throwable instant cover that blocks bullets until it's shot down. Bots use them too.
+- **🦸 Character skills:** 1 active skill on the SKILL button (Medic Pulse, Turbo Run, Iron Will, Radar Pulse, Gloo Fortress, Adrenaline) and 2 passives (Thick Skin, Fast Hands, Sprinter, Field Medic, Headhunter, Gloo Master, Scavenger).
+- **🐾 Pets** that follow you, each with a perk: Bam the panda, Biscuit, Ember, Hoot, Chilly and Bolt.
+- **👕 Outfits** (hoodies, ninja, crown, cyber visor, golden aura…), **🔫 weapon skins** with glowing tracers, and **😀 emotes**.
+- **🪪 Profile:** name, UID, level and XP, likes, **BR and CS rank badges** (Bronze → Grandmaster), stats (K/D, headshot %, Booyah rate) and match history.
+- **🪙 Coins and 💎 diamonds** are earned in matches and spent in the 🛒 Store. There's also a **🎁 7-day daily login** reward.
+- **Kill banners** (FIRST BLOOD, HEADSHOT, DOUBLE KILL… RAMPAGE), MVP, and Booyah results with XP, coins and rank-point rewards.
+- **FF-style lobby:** your squad lined up with your pet, side menu, mode card and a big START button.
+
+Everything is stored locally in your browser. There's no real-money shop, and the currencies can only be earned by playing.
 
 The original 2D survival game is still included as **🕹️ Classic 2D** (`classic/`).
 
@@ -131,11 +148,17 @@ css/br.css              styles + mobile control layout
 js/countries.js         197 countries, parody parties, voices (shared with classic)
 js/audio.js             synthesized SFX (guns, footsteps, plane...), music, voices (shared)
 js/br/engine.js         tiny WebGL renderer: shaders, meshes, fog, billboards
-js/br/data.js           weapons, ammo, items, armor, loot table, zone phases, difficulty
-js/br/world.js          island terrain, towns, enterable buildings, trees, rocks, collision, ray casting
-js/br/character.js      low-poly politicians, guns, armor, parachute, plane, loot models
+js/br/data.js           weapons, items, loot, zone, skills, pets, outfits, skins, ranks, modes, CS shop
+js/br/progress.js       profile, level/XP, coins/diamonds, ranks, owned items, rewards, daily login
+js/br/world.js          island terrain, towns, buildings, props, collision, ray casting, gloo obstacles
+js/br/character.js      low-poly characters (outfits, hats, poses, emotes), pets, gloo, plane, loot
 js/br/input.js          touch (stick, look, buttons), mouse + pointer lock, keyboard, gamepad
-js/br/game.js           match flow, player, bots AI, shooting, zone, HUD, menus
+js/br/core.js           shared state, settings, renderer setup, fighters, loot helpers, messages
+js/br/combat.js         shooting, damage, knock/revive, kills, pickups, gloo walls, grenades, skills, physics
+js/br/modes.js          Battle Royale, Clash Squad rounds + shop, Training, end of match + rewards
+js/br/ai.js             bot brains: loot, fight, follow squad, revive, gloo, skills
+js/br/game.js           player control, frame loop, camera, rendering, HUD, scoreboard, lobby scene
+js/br/ui.js             lobby menus: modes, store, vault, pets, skills, profile, daily rewards
 classic/                the original 2D survival game
 ```
 

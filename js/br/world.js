@@ -79,6 +79,10 @@
       return o;
     }
     const box = (x, y, z, w, h, d, kind) => addOb({ x0: x - w / 2, x1: x + w / 2, y0: y, y1: y + h, z0: z - d / 2, z1: z + d / 2, kind });
+    // dynamic obstacles (gloo walls) live in a small list instead of the static grid
+    W.dyn = [];
+    W.addDyn = o => { o.dyn = true; W.dyn.push(o); return o; };
+    W.removeDyn = o => { const i = W.dyn.indexOf(o); if (i >= 0) W.dyn.splice(i, 1); };
     function query(x0, z0, x1, z1, out) {
       stamp++;
       const i0 = clamp(Math.floor(x0 / OG), 0, OGN - 1), i1 = clamp(Math.floor(x1 / OG), 0, OGN - 1);
@@ -87,6 +91,7 @@
         const c = grid[j * OGN + i];
         for (let k = 0; k < c.length; k++) { const o = c[k]; if (o.stamp !== stamp) { o.stamp = stamp; out.push(o); } }
       }
+      for (const o of W.dyn) if (o.x1 >= x0 && o.x0 <= x1 && o.z1 >= z0 && o.z0 <= z1) out.push(o);
       return out;
     }
     W.query = query;
@@ -333,6 +338,7 @@
     // cast a ray against obstacles and terrain; returns hit distance (Infinity if nothing within maxT)
     W.raycast = (ox, oy, oz, dx, dy, dz, maxT) => {
       let best = maxT;
+      W.lastHit = null; // obstacle that stopped the ray (null = terrain or nothing)
       const step = 12;
       for (let s = 0; s < best; s += step) {
         const e = Math.min(best, s + step);
@@ -341,13 +347,13 @@
         query(Math.min(ax, bx) - 0.5, Math.min(az, bz) - 0.5, Math.max(ax, bx) + 0.5, Math.max(az, bz) + 0.5, rayList);
         for (const o of rayList) {
           const t = rayBox(o, ox, oy, oz, dx, dy, dz, best);
-          if (t < best) best = t;
+          if (t < best) { best = t; W.lastHit = o; }
         }
       }
       // terrain: march
       for (let t = 0.5; t < best; t += 2) {
         const x = ox + dx * t, y = oy + dy * t, z = oz + dz * t;
-        if (y < W.heightAt(x, z)) { best = Math.max(0, t - 1); break; }
+        if (y < W.heightAt(x, z)) { best = Math.max(0, t - 1); W.lastHit = null; break; }
       }
       return best < maxT ? best : Infinity;
     };

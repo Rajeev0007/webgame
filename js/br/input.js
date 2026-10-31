@@ -40,11 +40,12 @@
     const map = {
       KeyR: "reload", KeyE: "interact", KeyF: "interact", KeyC: "crouch", ControlLeft: "crouch", Space: "jump",
       Digit1: "slot0", Digit2: "slot1", Digit3: "slot2", KeyX: "holster", KeyG: "grenade", KeyH: "heal", Digit4: "heal",
-      KeyM: "map", Tab: "map", KeyP: "pause", Escape: "escape", KeyV: "view", KeyB: "drink",
+      KeyM: "map", Tab: "score", KeyP: "pause", Escape: "escape", KeyB: "drink",
+      KeyQ: "skill", KeyT: "gloo", KeyZ: "emote", KeyY: "shop",
     };
     if (map[e.code]) emit(map[e.code], "key");
   });
-  addEventListener("keyup", e => { I.keys[e.code] = false; });
+  addEventListener("keyup", e => { I.keys[e.code] = false; if (e.code === "Tab") emit("scoreUp"); });
   I.clear = () => {
     for (const k in I.keys) I.keys[k] = false;
     I.mouseDown = false; I.aimHeld = false; I.stick.active = false; I.lookTouch.id = null; I.fireTouch.id = null;
@@ -162,6 +163,7 @@
     if (edge(8)) emit("map", "pad");
     if (edge(9)) emit("pause", "pad");
     if (edge(12)) emit("slot0"); if (edge(13)) emit("slot1");
+    if (edge(14)) emit("skill", "pad"); if (edge(15)) emit("gloo", "pad");
     I.padPrev = b;
   };
 
@@ -183,6 +185,8 @@
     return { x, y };
   };
   I.firing = () => I.mouseDown || I.btn.fire || (I.pad && I.pad.b[7]);
+  // held "use" (revive a teammate): E/F key, the on-screen revive/pick button, or controller X
+  I.holdUse = () => I.keys.KeyE || I.keys.KeyF || I.btn.interact || I.btn.revive || (I.pad && I.pad.b[2]);
   I.aiming = () => I.aimHeld || (I.pad && I.pad.b[6]);
   I.sprint = () => I.keys.ShiftLeft || I.keys.ShiftRight || (I.pad && I.pad.b[10]) || (I.stick.active && Math.hypot(I.stick.x - I.stick.ox, I.stick.y - I.stick.oy) > STICK_R * 1.25);
   I.takeLook = () => { const l = { dx: I.look.dx, dy: I.look.dy }; I.look.dx = I.look.dy = 0; return l; };
