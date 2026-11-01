@@ -1,12 +1,16 @@
 {
   "name": "brainrot-election-2026",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "Brainrot Royale 3D: a browser battle royale (50 players, plane drop, loot, shrinking zone) plus the classic 2D survival mode.",
   "private": true,
   "scripts": {
-    "start": "npx --yes serve -l 8080 .",
+    "start": "node server/server.js",
     "dev": "npx --yes serve -l 8080 .",
-    "check": "for f in js/*.js js/br/*.js classic/js/*.js; do node --check \"$f\" || exit 1; done && echo all scripts OK"
+    "check": "for f in js/*.js js/br/*.js classic/js/*.js; do node --check \"$f\" || exit 1; done && echo all scripts OK",
+    "static": "npx --yes serve -l 8080 ."
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
 }

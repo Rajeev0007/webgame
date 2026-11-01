@@ -55,6 +55,7 @@
     }
     const end = Math.min(best, range);
     const ex = ox + d[0] * end, ey = oy + d[1] * end, ez = oz + d[2] * end;
+    if (traceShot.first) { traceShot.first = false; traceShot.end = [ex, ey, ez]; }
     G.tracers.push({ ax: mz[0], ay: mz[1], az: mz[2], bx: ex, by: ey, bz: ez, life: 0.07, col: f.tracer || (f.isPlayer ? [1, 0.9, 0.5] : [1, 0.75, 0.4]) });
     if (hitF) {
       const head = !hitF.knocked && hitY > hitF.y + X.fHeight(hitF) - 0.36;
@@ -74,7 +75,9 @@
     f.fireCd = 60 / w.rpm;
     f.emote = null;
     const mz = X.muzzleOf(f);
+    traceShot.first = true;
     for (let i = 0; i < w.pellets; i++) traceShot(f, ox, oy, oz, X.coneDir(dx, dy, dz, spread), w.range * 1.6, w, mz);
+    if (G.online && f.isPlayer && traceShot.end) BR3.Net.shot(mz, traceShot.end, w.short);
     X.sfxAt(w.sound, f.x, f.z, f.isPlayer ? 1 : 0.85);
     // muzzle flash (2 layers) + ejected shell casing
     G.parts.push({ x: mz[0], y: mz[1], z: mz[2], vx: 0, vy: 0, vz: 0, life: 0.05, col: [1, 0.95, 0.7], s: 0.12, g: 0 });
@@ -137,6 +140,17 @@
     if (t.buffs.iron > 0) d *= 0.55;
     if (X.has(t, "thick")) d *= 0.92;
     d = Math.max(1, Math.round(d));
+    if (G.online) {
+      // online: the server is the referee. We only report our own hits on other real players.
+      if (!(t.isRemote && a && a.isPlayer)) return;
+      BR3.Net.hit(t, d, head, wname);
+      a.dmg += d; if (head) a.heads++;
+      t.hitT = 0.25;
+      G.dmgNums.push({ x: hx, y: hy + 0.3, z: hz, v: d, head, t: 0.8 });
+      G.hitmT = 0.18; G.hitmKind = head ? "head" : "";
+      SND.sfx(head ? "headshot" : "hitmark");
+      return;
+    }
     t.hitT = 0.25; t.hurtT = G.t; t.emote = null;
     if (a) { a.dmg += d; t.lastHitBy = a; if (head) a.heads++; }
     if (t.isPlayer) {
@@ -333,6 +347,7 @@
   X.placeGloo = (f, yaw, free = false) => {
     const G = X.G, W = X.WORLD;
     if (!free) { if (f.items.gloo <= 0 || f.knocked || f.phase !== "ground") return false; f.items.gloo--; }
+    if (G.online && f.isPlayer) BR3.Net.fx({ k: "gloo", x: f.x, y: f.y, z: f.z, a: yaw });
     const hp = 140 * (X.has(f, "gloo") ? 1.4 : 1);
     const wall = { segs: [], life: 30, owner: f, grow: 0 };
     for (let i = -2; i <= 2; i++) {
@@ -372,6 +387,7 @@
     f.items.grenade--;
     const m = X.muzzleOf(f), sp = 17;
     X.G.grenades.push({ x: m[0], y: m[1] + 0.2, z: m[2], vx: dx * sp, vy: dy * sp + 4.5, vz: dz * sp, fuse: 3, owner: f });
+    if (X.G.online && f.isPlayer) BR3.Net.fx({ k: "gren", x: m[0], y: m[1] + 0.2, z: m[2], vx: dx * sp, vy: dy * sp + 4.5, vz: dz * sp });
     X.sfxAt("pin", f.x, f.z);
   };
   X.updateGrenades = dt => {

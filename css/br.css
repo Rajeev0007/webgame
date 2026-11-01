@@ -404,3 +404,11 @@ body:not(.in-touch) .tb.revive { display: none !important; }
   transform-origin: 50% 0; animation: sweep 7s ease-in-out infinite alternate; }
 #killBanner .txt { animation: rise 0.3s ease-out; }
 .tb { transition: transform 0.08s, background 0.08s; }
+
+/* online */
+.mode-grid { grid-template-rows: 1fr 1fr auto; height: auto; min-height: min(70vh, 460px); }
+.mcard.wide3 { grid-column: span 3; min-height: 120px; }
+.m-online { background: linear-gradient(120deg, #065f46, #0f766e 40%, #1e3a8a); }
+@media (max-width: 720px) { .mcard.wide3 { grid-column: span 2; } }
+#emoteWheel .qc { width: auto; padding: 0 10px; font-size: 13px; white-space: nowrap; }
+#emoteWheel { flex-wrap: wrap; max-width: min(92vw, 520px); }

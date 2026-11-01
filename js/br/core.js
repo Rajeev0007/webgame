@@ -123,7 +123,13 @@
     const d = Math.hypot(x - c.x, z - c.z);
     return Math.pow(clamp(1 - d / 190, 0, 1), 1.6);
   };
-  X.sfxAt = (name, x, z, scale = 1) => BR.Audio.sfx(name, X.hearVol(x, z) * scale);
+  // positional sound: louder when close, panned left/right relative to where the camera looks
+  X.sfxAt = (name, x, z, scale = 1) => {
+    const c = X.G ? X.G.cam : null;
+    let pan = 0;
+    if (c) { const dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz); if (d > 1.5) pan = ((dx * -Math.cos(c.yaw) + dz * Math.sin(c.yaw)) / d) * 0.85; }
+    BR.Audio.sfx(name, X.hearVol(x, z) * scale, pan);
+  };
   X.vibrate = ms => { if (X.S.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { /* ignore */ } };
   X.speakAs = (ch, text, force) => BR.Audio.speak(text, { lang: ch.lang, pitch: ch.pitch, rate: ch.rate, force });
 

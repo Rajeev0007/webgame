@@ -124,6 +124,7 @@
     if (G.training) X.updateTraining(dt);
     updatePlayer(dt);
     for (const f of G.fighters) {
+      if (f.isRemote) { BR3.Net.updateRemote(f, dt); continue; }
       if (!f.isPlayer && f.alive) X.updateBot(f, dt);
       if (f.alive) X.updateBuffs(f, dt);
       if (f.dead) f.deadT += dt;
@@ -135,7 +136,8 @@
     }
     // zone damage
     G.zoneTick = (G.zoneTick || 0) - dt;
-    if (G.zoneTick <= 0 && !G.training && !(G.cs && G.cs.phase !== "fight")) {
+    if (G.online) BR3.Net.tick(dt);
+    if (G.zoneTick <= 0 && !G.training && !G.online && !(G.cs && G.cs.phase !== "fight")) {
       G.zoneTick = 1;
       for (const f of G.fighters) {
         if (!f.alive || f.phase !== "ground" || !X.outsideZone(f)) continue;
@@ -174,7 +176,7 @@
     else if (pd > 0.3) { const s = Math.min(pd, dt * (pd > 3 ? 8 : 4.5)); G.pet.x += (pdx / pd) * s; G.pet.z += (pdz / pd) * s; G.pet.yaw = Math.atan2(pdx, pdz); }
     G.pet.moving = clamp(pd / 1.5, 0, 1);
     G.pet.y = X.WORLD.groundAt(G.pet.x, G.pet.z, P.y + 1);
-    if (!G.cs && G.alive <= 5 && !G.intense && P.alive && !G.training) { G.intense = true; SND.music.start(); SND.music.setIntense(true); X.toast(`🔥 Only ${G.alive} left!`); }
+    if (!G.cs && !G.online && G.alive <= 5 && !G.intense && P.alive && !G.training) { G.intense = true; SND.music.start(); SND.music.setIntense(true); X.toast(`🔥 Only ${G.alive} left!`); }
   }
 
   // =================================================================== camera + render
@@ -508,7 +510,10 @@
     setT("aliveN", String(G.alive));
     setT("killsN", String(P.kills));
     setT("aliveL", G.teamSize > 1 ? `alive · ${new Set(G.fighters.filter(f => f.alive).map(f => f.team)).size} squads` : "alive");
-    if (G.training) { setT("zoneT", "∞"); setT("zoneL", "training"); }
+    if (G.online) {
+      setT("zoneT", G.matchEnd ? "END" : mmss((G.endsAt - performance.now()) / 1000)); setT("zoneL", `match · first to ${G.target}`);
+      setT("aliveL", `online · ${BR3.Net.ping} ms`);
+    } else if (G.training) { setT("zoneT", "∞"); setT("zoneL", "training"); }
     else { setT("zoneT", Z.mode === "done" ? "FINAL" : mmss(Z.t)); setT("zoneL", Z.mode === "shrink" ? "shrinking" : Z.mode === "done" ? "zone" : "until shrink"); }
     setC($("zonePill"), "shrink", Z.mode === "shrink");
     // banner like "Safe Zone will shrink in 00:45"
@@ -519,7 +524,14 @@
     setT("zoneBanner", bt); setC(zb, "hidden", !bt); setC(zb, "warn", Z.mode === "shrink");
     // clash squad bar
     const cb = $("csBar");
-    setC(cb, "hidden", !G.cs);
+    const tdm = G.online && G.netMode === "tdm";
+    setC(cb, "hidden", !G.cs && !tdm);
+    if (tdm) {
+      const my = P.team, tk = G.teamKills;
+      setT("csA", String(tk[my])); setT("csB", String(tk[1 - my]));
+      setT("csTime", mmss((G.endsAt - performance.now()) / 1000)); setT("csObj", `Team Deathmatch · first to ${G.target}`);
+      setH("csDotsA", ""); setH("csDotsB", "");
+    }
     if (G.cs) {
       const C = G.cs;
       setT("csA", String(C.score[0])); setT("csB", String(C.score[1]));
@@ -604,7 +616,13 @@
   X.renderScoreboard = () => {
     const G = X.G, P = G.player;
     let A, B, nA = "YOUR SQUAD", nB = "ENEMIES", sA, sB;
-    if (G.cs) { A = G.fighters.filter(f => f.team === 0); B = G.fighters.filter(f => f.team === 1); sA = G.cs.score[0]; sB = G.cs.score[1]; nB = "ENEMY SQUAD"; }
+    if (G.online && G.netMode === "tdm") {
+      A = G.fighters.filter(f => f.team === P.team).sort((a, b) => b.kills - a.kills); B = G.fighters.filter(f => f.team !== P.team).sort((a, b) => b.kills - a.kills);
+      sA = G.teamKills[P.team]; sB = G.teamKills[1 - P.team]; nA = "YOUR TEAM"; nB = "ENEMY TEAM";
+    } else if (G.online) {
+      const all = G.fighters.slice().sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+      A = all.filter((f, i) => i % 2 === 0); B = all.filter((f, i) => i % 2 === 1); sA = "🌐"; sB = `${all.length} online`; nA = "LEADERBOARD"; nB = "LEADERBOARD";
+    } else if (G.cs) { A = G.fighters.filter(f => f.team === 0); B = G.fighters.filter(f => f.team === 1); sA = G.cs.score[0]; sB = G.cs.score[1]; nB = "ENEMY SQUAD"; }
     else if (G.teamSize > 1) {
       A = G.fighters.filter(f => f.team === P.team);
       B = G.fighters.filter(f => f.team !== P.team).sort((a, b) => b.kills - a.kills || b.dmg - a.dmg).slice(0, 4);
@@ -639,6 +657,8 @@
     else X.toLobby();
   };
   X.toLobby = () => {
+    if (BR3.Net) BR3.Net.stop();
+    $("chatBtn").classList.add("hidden");
     X.state = "lobby";
     X.G = null;
     X.exitLock();
@@ -668,6 +688,7 @@
     backTo = from || "lobby";
     const S = X.S;
     $("sName").value = PROG.data.name;
+    $("sServer").value = X.S.server || "";
     $("sSens").value = S.sens; $("sAssist").checked = S.assist; $("sInvert").checked = S.invert;
     $("sMusic").value = S.music; $("sSfx").value = S.sfx; $("sVoice").value = S.voice; $("sVib").checked = S.vib; $("sFps").checked = S.fps;
     document.querySelectorAll("#sQuality button").forEach(b => b.classList.toggle("on", b.dataset.v === S.quality));
@@ -778,14 +799,17 @@
     const el = $("emoteWheel");
     if (!X.G) return;
     if (el.classList.contains("hidden")) {
+      el.dataset.kind = "emote";
       el.innerHTML = Object.entries(BR3.EMOTES).map(([k, e]) => `<button data-e="${k}" title="${e.name}">${e.icon}</button>`).join("");
       el.classList.remove("hidden"); X.exitLock();
     } else { el.classList.add("hidden"); X.requestLock(); }
   }
   $("emoteWheel").addEventListener("click", e => {
-    const b = e.target.closest("[data-e]");
-    if (!b || !ground()) return;
+    const b = e.target.closest("[data-e],[data-chat]");
+    if (!b || (!ground() && !b.dataset.chat)) return;
+    if (b.dataset.chat) { BR3.Net.chat(b.dataset.chat); $("emoteWheel").classList.add("hidden"); X.requestLock(); return; }
     X.G.player.emote = { type: b.dataset.e, t: 0, dur: 4 };
+    if (X.G.online) BR3.Net.fx({ k: "emote", e: b.dataset.e });
     $("emoteWheel").classList.add("hidden");
     X.requestLock();
   });
@@ -798,6 +822,14 @@
   $("buyClose").onclick = toggleShop;
   $("shopBtn").onclick = toggleShop;
   $("emoteBtn").onclick = toggleEmotes;
+  const QUICK = ["Nice shot! 🔥", "Help me! 🆘", "Go go go! ➡️", "Enemy here! ⚠️", "GG 🤝", "LOL 😂", "No cap 🧢", "Booyah! 🏆"];
+  $("chatBtn").onclick = () => {
+    const el = $("emoteWheel");
+    if (!el.classList.contains("hidden") && el.dataset.kind === "chat") { el.classList.add("hidden"); return; }
+    el.dataset.kind = "chat";
+    el.innerHTML = QUICK.map(q => `<button data-chat="${esc(q)}" class="qc">${esc(q)}</button>`).join("");
+    el.classList.remove("hidden"); X.exitLock();
+  };
   $("scoreBtn").onclick = () => { if (X.G) { X.renderScoreboard(); $("scoreboard").classList.toggle("hidden"); } };
   $("scoreboard").addEventListener("click", () => { if (!(X.G && X.G.cs && X.G.cs.phase === "end")) $("scoreboard").classList.add("hidden"); });
   $("mapBtn").onclick = toggleMap;
@@ -851,6 +883,7 @@
     renderCharGrid();
     setTimeout(X.toLobby, 250);
   });
+  $("sServer").addEventListener("change", e => { X.S.server = e.target.value.trim(); X.applySettings(); X.toast(X.S.server ? "🌐 Server saved" : "🌐 Using this website as the server"); });
   $("sName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 16); if (v) { PROG.data.name = v; PROG.save(); } });
   [["sSens", "sens"], ["sMusic", "music"], ["sSfx", "sfx"], ["sVoice", "voice"]].forEach(([id, k]) => $(id).addEventListener("input", e => { X.S[k] = +e.target.value; X.applySettings(); }));
   [["sAssist", "assist"], ["sInvert", "invert"], ["sVib", "vib"], ["sFps", "fps"]].forEach(([id, k]) => $(id).addEventListener("change", e => { X.S[k] = e.target.checked; X.applySettings(); }));
@@ -869,7 +902,7 @@
     try {
       if (X.state === "lobby" || X.state === "loading") { if (X.WORLD) renderLobby(now / 1000, dt); }
       else if (X.G) {
-        if (["play", "plane", "dead", "over"].includes(X.state)) update(dt);
+        if (["play", "plane", "dead", "over"].includes(X.state) || (X.G.online && X.state === "paused")) update(dt);
         updateCamera(); render(); overlay(); hud();
       }
     } catch (err) {

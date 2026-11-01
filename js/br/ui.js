@@ -21,12 +21,12 @@
     $("lDia").textContent = d.diamonds.toLocaleString();
     $("dailyDot").classList.toggle("hidden", !PROG.dailyAvailable());
     $("mName").textContent = M.name;
-    const teamTxt = M.cs ? "4v4 · first to 4" : M.training ? "Solo practice" : { 1: "Solo", 2: "Duo", 4: "Squad" }[S.team];
+    const teamTxt = M.online ? `${(S.netMode || "ffa") === "tdm" ? "Team Deathmatch" : "Free-for-all"}${S.room ? " · room " + S.room : " · quick play"}` : M.cs ? "4v4 · first to 4" : M.training ? "Solo practice" : { 1: "Solo", 2: "Duo", 4: "Squad" }[S.team];
     $("mSub").textContent = `${M.icon} ${teamTxt}${M.ranked ? ` · ${rk.icon} ${rk.label}` : ""}`;
     $("teamSeg").classList.toggle("hidden", !M.br);
     document.querySelectorAll("#teamSeg button").forEach(b => b.classList.toggle("on", +b.dataset.t === S.team));
     $("diffSeg").innerHTML = Object.entries(BR3.DIFF).map(([k, v]) => `<button data-d="${k}" class="${S.diff === k ? "on" : ""}">${v.label}</button>`).join("");
-    $("diffSeg").classList.toggle("hidden", !!M.training);
+    $("diffSeg").classList.toggle("hidden", !!M.training || !!M.online);
     const e = d.equip, sk = BR3.SKILLS[e.skill], pet = BR3.PETS[e.pet], of = BR3.OUTFITS[e.outfit], ws = BR3.WSKINS[e.wskin];
     $("lCand").innerHTML = `
       <div class="row"><img src="${BR.flagUrl(c.code)}" alt=""><div><b>${esc(c.name)}</b><div>${esc(c.party)}</div></div></div>
@@ -36,7 +36,7 @@
       <button class="big secondary" id="lVoice" style="padding:6px">🔊 Voice line</button>`;
     $("lVoice").onclick = () => { SND.init(); X.speakAs(c, c.phrase, true); };
     $("lEmotes").innerHTML = Object.entries(BR3.EMOTES).map(([k, v]) => `<button data-e="${k}" title="${v.name}">${v.icon}</button>`).join("");
-    $("playBtn").textContent = M.training ? "TRAIN" : "START";
+    $("playBtn").textContent = M.training ? "TRAIN" : M.online ? "PLAY ONLINE" : "START";
     X.refreshLobbyScene();
   };
   $("teamSeg").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b) return; X.S.team = +b.dataset.t; X.applySettings(); UI.refreshLobby(); });
@@ -69,12 +69,22 @@
       // a div (not a button) so the Solo/Duo/Squad buttons can live inside the card
       return `<div role="button" tabindex="0" class="mcard m-${k} ${cls || ""}${S.mode === k ? " on" : ""}" data-m="${k}">${rank}<span class="ic">${M.icon}</span><h3>${M.name}</h3><p>${esc(M.sub)}</p>${seg}</div>`;
     };
-    $("modeGrid").innerHTML = card("ranked", "big1") + card("classic") + card("cs") + card("csranked") + card("training");
+    const net = X.S.netMode || "ffa";
+    const online = `<div role="button" tabindex="0" class="mcard m-online wide3${S.mode === "online" ? " on" : ""}" data-m="online"><span class="rkb">🟢 Real players · up to 16 per room</span><span class="ic">🌐</span><h3>ONLINE</h3><p>Play live against other people. Quick play, or a private room with friends.</p>
+      <div class="seg"><button data-net="ffa" class="${net === "ffa" ? "on" : ""}">Free-for-all</button><button data-net="tdm" class="${net === "tdm" ? "on" : ""}">Team Deathmatch</button><button data-room="1" class="${X.S.room ? "on" : ""}">${X.S.room ? "🔒 Room " + esc(X.S.room) : "🔒 Private room"}</button></div></div>`;
+    $("modeGrid").innerHTML = card("ranked", "big1") + card("classic") + card("cs") + card("csranked") + card("training") + online;
     X.show("modes");
   }
   $("modeGrid").addEventListener("click", e => {
     const t = e.target.closest("[data-t]"), m = e.target.closest("[data-m]");
     if (!m) return;
+    const nb = e.target.closest("[data-net]"), rb = e.target.closest("[data-room]");
+    if (nb) X.S.netMode = nb.dataset.net;
+    if (rb) {
+      const code = prompt("Private room code (share it with friends). Leave empty for quick play.", X.S.room || Math.random().toString(36).slice(2, 8).toUpperCase());
+      if (code === null) return;
+      X.S.room = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    }
     SND.init(); SND.sfx("click");
     X.S.mode = m.dataset.m;
     if (t) X.S.team = +t.dataset.t;

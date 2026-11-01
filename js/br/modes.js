@@ -14,7 +14,7 @@
       diff.aim *= Math.max(0.6, 1 - idx * 0.06); diff.react *= Math.max(0.6, 1 - idx * 0.05); diff.dmg = Math.min(1.1, diff.dmg + idx * 0.03);
     }
     return {
-      cfg, mode: cfg.mode, M, teamSize: M.cs ? 4 : M.training ? 1 : cfg.team, t: 0, diff,
+      cfg, mode: cfg.mode, M, teamSize: M.cs ? 4 : M.training || M.online ? 1 : cfg.team, t: 0, diff,
       fighters: [], loot: [], tracers: [], parts: [], grenades: [], gloos: [], dmgNums: [], indicators: [], pings: [],
       alive: 0, ads: false, adsToggle: false, prevFire: false, bloom: 0,
       cam: { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: 1, yaw: 0, pitch: -0.1, dist: 3.4 }, fov: 1.2,
@@ -25,6 +25,7 @@
     };
   }
 
+  X.makeG = cfg => baseG(cfg);
   // ================================================================ start
   X.startMatch = () => {
     SND.init();
@@ -34,6 +35,7 @@
     $("feed").innerHTML = "";
     X.WORLD.dyn.length = 0;
     const cfg = { mode: X.S.mode, team: X.S.team };
+    if (BR3.MODES[cfg.mode] && BR3.MODES[cfg.mode].online) { X.G = null; return BR3.Net.start(); }
     const G = (X.G = baseG(cfg));
     document.body.classList.toggle("cs", !!G.M.cs);
     if (G.M.cs) startCS(G);
@@ -361,7 +363,7 @@
   // ================================================================ end of match
   X.checkEnd = () => {
     const G = X.G;
-    if (!G || G.over || G.training) return;
+    if (!G || G.over || G.training || G.online) return;
     if (G.cs) return csCheckRound();
     const teams = new Set(G.fighters.filter(f => f.alive).map(f => f.team));
     G.teamsAlive = teams.size;

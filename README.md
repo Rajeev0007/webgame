@@ -1,11 +1,12 @@
 # 🪂 Brainrot Royale 3D
 
-A **3D third-person battle royale** that runs in the browser on phones, tablets and PCs. **48–50 players** fly over an island and parachute down. You loot guns, armor and med kits, and survive a **shrinking zone** until you're the last squad standing. Every other player is a bot.
+A **3D third-person battle royale** that runs in the browser on phones, tablets and PCs. **48–50 players** fly over an island and parachute down. You loot guns, armor and med kits, and survive a **shrinking zone** until you're the last squad standing. The offline modes fill the island with bots, and the **🌐 Online** mode lets you fight real people (up to 16 per room) once you deploy the included server.
 
 You play as a parody candidate from any of **197 countries**, each with their own flag-pattern suit, voice line and party.
 
 ### 🆕 Modes and features
-- **Mode select:** 🏆 Ranked Game, 🪂 Classic (Solo / Duo / Squad), ⚔️ Clash Squad 4v4, 🏅 Clash Squad Ranked, 🎯 Training.
+- **Mode select:** 🏆 Ranked Game, 🪂 Classic (Solo / Duo / Squad), ⚔️ Clash Squad 4v4, 🏅 Clash Squad Ranked, 🎯 Training, 🌐 Online.
+- **🌐 Online multiplayer:** Free-for-all (first to 25 kills) or Team Deathmatch (first team to 40), quick play or a private room code for friends, 3 s respawns, quick chat, live ping. The server checks every hit, so players can't send fake damage. See [Play online with real people](#-play-online-with-real-people).
 - **Squads:** bot teammates drop with you, follow you, loot, fight and **revive** you. Downed players are **knocked** and crawl while they bleed out. Hold E (or ➕ REVIVE) to pick a teammate up. A team list with HP bars sits under the minimap.
 - **Clash Squad:** 4v4 rounds in a town arena, first to 4 wins.
   - Each round starts with a 10 s **buy phase**. The 🛒 shop sells guns, vests, helmets, gloo walls, grenades and heals, paid for with round coins.
@@ -48,6 +49,8 @@ npm start
 ```
 Then open **http://localhost:8080**. Stop the server with `Ctrl + C`.
 
+This is the game's own server (`server/server.js`), so **online mode works too**. Open the page in two browser tabs (or on two devices on the same Wi-Fi), choose 🌐 Online in both, and you'll be in the same match. Use `PORT=3000 npm start` to pick another port.
+
 ### Option 3: Python
 ```bash
 python3 -m http.server 8080
@@ -79,6 +82,8 @@ Any static website host works, because the whole game is static files.
 
 Every new push to that branch updates the site automatically.
 
+> Static hosts (GitHub Pages, Netlify, Vercel, Cloudflare Pages, itch.io) run every offline mode. For 🌐 Online you also need the server, see the next section.
+
 ### Netlify
 - **Drag and drop:** go to [app.netlify.com/drop](https://app.netlify.com/drop) and drop the project folder.
 - **Or connect GitHub:** Add new site → Import from Git → pick the repo. Leave the build command empty and set the publish directory to `.`.
@@ -98,6 +103,89 @@ Workers & Pages → Create → Pages → Connect to Git → pick the repo. Leave
 - Use **HTTPS**, which all the hosts above provide. Browsers only allow mouse lock, controllers and voices on secure pages.
 - Flags load from [flagcdn.com](https://flagcdn.com). If they can't load, suits fall back to a solid color.
 - Stats and settings are saved in the browser's `localStorage`, separately for each browser and device.
+
+---
+
+## 🌐 Play online with real people
+
+Online mode needs the small game server in `server/server.js`. It is plain Node.js with **no npm packages**, and it serves the game files too, so one deploy gives you the website and the multiplayer at the same address.
+
+### Step 1: deploy the server on Render (free)
+1. Sign in at [render.com](https://render.com) with your GitHub account.
+2. Click **New → Web Service** and pick this repository (`Rajeev0007/webgame`).
+3. Fill in:
+   | Field | Value |
+   |---|---|
+   | Branch | `brainrot-election` (the branch with the game) |
+   | Runtime / Language | **Node** |
+   | Build Command | leave empty, or `echo none` |
+   | Start Command | `node server/server.js` |
+   | Instance type | **Free** |
+4. Click **Create Web Service** and wait until the log says `Brainrot Royale server on ...`.
+5. Render gives you an address like **`https://webgame-xxxx.onrender.com`**. Check it works by opening `https://webgame-xxxx.onrender.com/health`. It should show `{"ok":true,...}`.
+
+You can also click **New → Blueprint** and pick the repo. The included `render.yaml` fills in all of the above for you.
+
+**Railway** works the same way: [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → it detects `npm start` automatically → Settings → Networking → **Generate Domain**.
+
+> The free Render plan goes to sleep after about 15 minutes with nobody playing. The first player after that waits roughly 30–60 seconds while it wakes up. If you see "Server didn't answer", wait a bit and press PLAY ONLINE again.
+
+### Step 2: play
+- **Easiest:** open your Render address (`https://webgame-xxxx.onrender.com`) and send the same link to friends. Online mode connects to it automatically.
+- **From GitHub Pages:** GitHub Pages can't run a server, so tell the game where it is. Open ⚙️ **Settings → Online server** and paste `webgame-xxxx.onrender.com`. Every player who plays from the GitHub Pages link needs to do this once (it's saved in the browser).
+
+### Step 3: in the game
+1. Pick a candidate, then tap the **mode card → 🌐 ONLINE**.
+2. Choose **Free-for-all** or **Team Deathmatch**.
+3. **Quick play** puts you in any open room with free space. For friends only, tap **🔒 Private room**, type a code (e.g. `PARTY7`), and have your friends type the **same code**.
+4. Press **PLAY ONLINE**.
+
+| | Free-for-all | Team Deathmatch |
+|---|---|---|
+| Win | first to 25 kills, or most kills after 6 min | first team to 40 kills, or most after 7 min |
+| Teams | everyone for themselves | 2 teams, balanced automatically |
+| Players per room | up to 16 | up to 16 |
+
+When you die you respawn after 3 seconds with a fresh loadout. After a match the scoreboard shows for 10 seconds, then a new match starts in the same room. Use 💬 for quick chat. Your ping shows at the top of the screen.
+
+**How it's kept fair:** each player's own game decides where they move and whether their shot hit, and the server checks every hit before applying it (maximum damage per hit, damage per second and range, no team damage in TDM). Health, kills and respawns only change when the server says so.
+
+---
+
+## 🔊 Use real sound files (optional)
+
+All sounds are generated live by the game (layered gunshots, echo, left/right panning, muffled far-away shots), so it works with no files. For studio-quality sound you can drop in real recordings:
+
+1. Download free sounds, for example:
+   - [Kenney.nl audio packs](https://kenney.nl/assets?q=audio) (CC0, free for any use)
+   - [freesound.org](https://freesound.org) (check each file's license; CC0 is easiest)
+   - [Sonniss GDC game audio bundles](https://sonniss.com/gameaudiogdc) (free, royalty-free)
+2. Put the `.mp3`, `.ogg` or `.wav` files in **`assets/sounds/`**.
+3. Edit **`assets/sounds/sounds.json`**. Map a sound name to your file name, and remove the `_` in front of any line you want to use:
+   ```json
+   {
+     "ar": "ak-shot.mp3",
+     "sniper": "awm.ogg",
+     "step": "footstep-grass.wav"
+   }
+   ```
+4. Commit and push. Any sound you don't list keeps the built-in version.
+
+Sound names you can replace: `ar`, `m4`, `pistol`, `smg`, `shotgun`, `sniper`, `dmr`, `reload`, `step`, `land`, `boom`, `hurt`, `hitmark`, `headshot`, `knock`, `pick`, `heal`, `plane`, `wind`, `booyah`, `zone`, `click`.
+
+Keep files short (gunshots under 1 second) and small (under 200 KB each) so the game loads fast on phones. Real files only load when the game runs from a web server (`npm start` or any host above), not from a double-clicked `index.html`.
+
+---
+
+## 🧍 Realistic characters (next step)
+
+The characters are built and animated by code (`js/br/rig.js`). Free Fire and BGMI quality comes from artist-made 3D models with motion-captured animations. The game doesn't load those yet. If you want that upgrade, collect these files and I can add a model loader for them:
+
+1. **Characters:** [Mixamo](https://www.mixamo.com) (free with an Adobe account). Pick a character, download as **FBX** or **glTF**, "T-pose". Or use [Quaternius](https://quaternius.com) "Ultimate Modular Characters" (CC0, already `.glb`).
+2. **Animations:** on Mixamo, download these for the same character, **Without Skin**, 30 fps: idle rifle, run forward rifle, walk, sprint, crouch walk, jump, falling, rifle fire, reload, death, and skydive.
+3. Put them in `assets/models/` (e.g. `assets/models/soldier.glb`, `assets/models/anim/run.fbx`) and push.
+
+Use only models you have the rights to. Don't use files ripped from Free Fire, BGMI or other games.
 
 ---
 
@@ -138,7 +226,7 @@ Workers & Pages → Create → Pages → Connect to Git → pick the repo. Leave
 On phones and controllers, **aim assist** (on by default) gently pulls your aim onto enemies near the crosshair.
 
 ## ⚙️ Settings
-Look sensitivity, aim assist, invert Y, graphics quality (Low / Medium / High changes resolution and view distance), music, sound effects and voice volume, vibration, and an FPS counter.
+Look sensitivity, aim assist, invert Y, graphics quality (Low / Medium / High changes resolution and view distance), music, sound effects and voice volume, vibration, an FPS counter, and **Online server** (the address of your game server, only needed when playing from a static host like GitHub Pages).
 
 ## 🗂️ Project structure
 
@@ -159,9 +247,15 @@ js/br/combat.js         shooting, damage, knock/revive, kills, pickups, gloo wal
 js/br/modes.js          Battle Royale, Clash Squad rounds + shop, Training, end of match + rewards
 js/br/ai.js             bot brains: loot, fight, follow squad, revive, gloo, skills
 js/br/game.js           player control, frame loop, camera, rendering, HUD, scoreboard, lobby scene
+js/br/net.js            online client: connect, sync players, interpolation, hits, chat, scoreboard
 js/br/ui.js             lobby menus: modes, store, vault, pets, skills, profile, daily rewards
+server/server.js        Node game server (no dependencies): static files + WebSocket rooms on /ws
+assets/sounds/          optional real sound files + sounds.json map
+render.yaml             one-click Render deploy settings
 classic/                the original 2D survival game
 ```
+
+`npm start` runs the server (`PORT` env variable, default 8080). `GET /health` reports rooms and players.
 
 Run `npm run check` to syntax-check every script.
 
@@ -174,4 +268,8 @@ Run `npm run check` to syntax-check every script.
 | Mouse doesn't turn the camera | Click inside the game once to lock the mouse. Press Esc to free it. |
 | No sound | Tap or click once, because browsers block audio until you interact. Check the volume sliders. |
 | Characters don't talk | Voices come from your device's text-to-speech. Install extra voices in your OS settings. |
+| "Online needs a server address" | You're on GitHub Pages or a file. Deploy the server (see Play online) and put its address in ⚙️ Settings → Online server. |
+| "Server didn't answer" | A free Render server is waking up. Wait 30–60 s and try again. Check `https://your-server/health`. |
+| Friends end up in different matches | Use the same mode (FFA/TDM) and the same private room code. |
+| Real sound files don't play | Run from a web server, check the file names in `sounds.json` match exactly, and remove the `_` in front of the name. |
 | Controller not detected | Press any button after the page loads, and use `https://` or `http://localhost`. |

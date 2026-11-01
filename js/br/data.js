@@ -138,6 +138,7 @@
     classic:  { name: "CLASSIC",             sub: "Battle Royale · Solo / Duo / Squad", icon: "🪂", br: true },
     cs:       { name: "CLASH SQUAD",         sub: "4v4 rounds · first to 4", icon: "⚔️", cs: true },
     csranked: { name: "CLASH SQUAD RANKED",  sub: "4v4 rounds · rank points", icon: "🏅", cs: true, ranked: true },
+    online:   { name: "ONLINE",              sub: "Real players · Free-for-all / Team Deathmatch", icon: "🌐", online: true },
     training: { name: "TRAINING",            sub: "Shooting range · every gun", icon: "🎯", training: true },
   };
   // Clash Squad buy menu

@@ -1,0 +1,10 @@
+# Render Blueprint: New -> Blueprint -> pick this repo. Serves the game + online multiplayer.
+services:
+  - type: web
+    name: brainrot-royale
+    runtime: node
+    plan: free
+    branch: brainrot-election
+    buildCommand: echo "no build needed"
+    startCommand: node server/server.js
+    healthCheckPath: /health

@@ -65,6 +65,7 @@
       <button id="scoreBtn" class="hb" title="Scoreboard (Tab)">📋</button>
       <button id="shopBtn" class="hb hidden" title="Shop (Y)">🛒</button>
       <button id="emoteBtn" class="hb" title="Emote (Z)">😀</button>
+      <button id="chatBtn" class="hb hidden" title="Quick chat">💬</button>
       <button id="mapBtn" class="hb" title="Map (M)">🗺️</button>
       <button id="pauseBtn" class="hb" title="Pause (Esc)">⏸</button>
     </div>
@@ -216,6 +217,7 @@
       <div class="phead"><button class="icon back" data-back>←</button><h2>⚙️ Settings</h2></div>
       <div class="settings">
         <label class="row"><span>🏷️ Player name</span><input id="sName" type="text" maxlength="16" /></label>
+        <label class="row"><span>🌐 Online server</span><input id="sServer" type="text" placeholder="e.g. my-game.onrender.com" autocomplete="off" /></label>
         <label class="row"><span>🎯 Look sensitivity</span><input type="range" id="sSens" min="0.3" max="2.5" step="0.05" /></label>
         <label class="row"><span>🧲 Aim assist (touch & controller)</span><input type="checkbox" id="sAssist" /></label>
         <label class="row"><span>↕️ Invert look up/down</span><input type="checkbox" id="sInvert" /></label>
@@ -307,6 +309,7 @@
   <script src="js/br/combat.js"></script>
   <script src="js/br/modes.js"></script>
   <script src="js/br/ai.js"></script>
+  <script src="js/br/net.js"></script>
   <script src="js/br/game.js"></script>
   <script src="js/br/ui.js"></script>
 </body>
