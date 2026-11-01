@@ -378,3 +378,29 @@ body:not(.in-touch) .tb.revive { display: none !important; }
   .tb.revive { right: calc(300px + var(--sr)); bottom: calc(150px + var(--sb)); height: 40px; font-size: 12px; }
   #toast { top: calc(56px + var(--st)); font-size: 12px; }
 }
+
+/* ===================================================================== motion graphics */
+@keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
+@keyframes slideL { from { opacity: 0; transform: translateX(-30px); } }
+@keyframes slideR { from { opacity: 0; transform: translateX(30px); } }
+@keyframes shine { 0% { left: -60%; } 55%, 100% { left: 130%; } }
+@keyframes sweep { from { transform: translateX(-50%) rotate(-25deg); } to { transform: translateX(-50%) rotate(25deg); } }
+.screen:not(.hidden) .panel, .screen:not(.hidden) .modes-wrap { animation: rise 0.32s ease-out both; }
+.screen:not(.hidden) .mcard { animation: rise 0.4s ease-out both; }
+.mode-grid .mcard:nth-child(2) { animation-delay: 0.05s; } .mode-grid .mcard:nth-child(3) { animation-delay: 0.1s; }
+.mode-grid .mcard:nth-child(4) { animation-delay: 0.15s; } .mode-grid .mcard:nth-child(5) { animation-delay: 0.2s; }
+.mcard { transition: transform 0.15s, box-shadow 0.15s; } .mcard:hover { transform: translateY(-4px) scale(1.01); }
+.lobby:not(.hidden) .side { animation: slideL 0.35s ease-out both; }
+.lobby:not(.hidden) .lside .side:nth-child(2) { animation-delay: 0.04s; } .lobby:not(.hidden) .lside .side:nth-child(3) { animation-delay: 0.08s; }
+.lobby:not(.hidden) .lside .side:nth-child(4) { animation-delay: 0.12s; } .lobby:not(.hidden) .lside .side:nth-child(5) { animation-delay: 0.16s; }
+.lobby:not(.hidden) .lside .side:nth-child(6) { animation-delay: 0.2s; } .lobby:not(.hidden) .lside .side:nth-child(7) { animation-delay: 0.24s; }
+.lobby:not(.hidden) .lside .side:nth-child(8) { animation-delay: 0.28s; } .lobby:not(.hidden) .lside .side:nth-child(9) { animation-delay: 0.32s; }
+.lobby:not(.hidden) .lcand, .lobby:not(.hidden) .startbox { animation: slideR 0.4s ease-out both; }
+.side { transition: transform 0.12s, border-color 0.12s; } .side:hover { transform: translateX(4px); }
+.big.start, .big.play { position: relative; overflow: hidden; }
+.big.start::after, .big.play::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.7), transparent); animation: shine 2.8s infinite; pointer-events: none; }
+.screen.lobby::before { content: ""; position: absolute; left: 50%; top: -40%; width: 60%; height: 160%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,220,150,0.09) 45%, rgba(255,240,200,0.14) 50%, rgba(255,220,150,0.09) 55%, transparent);
+  transform-origin: 50% 0; animation: sweep 7s ease-in-out infinite alternate; }
+#killBanner .txt { animation: rise 0.3s ease-out; }
+.tb { transition: transform 0.08s, background 0.08s; }

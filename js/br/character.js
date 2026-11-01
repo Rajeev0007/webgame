@@ -18,6 +18,9 @@
       skin: SKINS[h % SKINS.length], hair: HAIRS[(h >> 2) % HAIRS.length],
       shades: !o.mask && o.hat !== "visor" && (type === "speedy" || type === "glass"), big: type === "tank",
       outfit: outfitId || "flag", shirt: o.shirt ? hex(o.shirt) : null, pants: hex(o.pants), hat: o.hat, mask: !!o.mask, glow: o.glow ? hex(o.glow) : null,
+      hairStyle: (h >> 4) % 3,
+      longSleeve: ["hoodie", "commando", "ninja", "cyber", "royal", "golden", "bandit"].includes(outfitId),
+      gloves: ["ninja", "commando", "cyber"].includes(outfitId),
     };
   };
 
@@ -293,6 +296,8 @@
     gt.box(0, -1.2, -0.05, 0.1, 1.4, 0.1, hex("#78350f"));
     const target = R.mesh(gt);
 
-    return { draw, drawPara, drawPet, cube, loot, plane, zoneWall, grenade, gloo, target, flagTex };
+    // smooth skeletal characters (rig.js) replace the old box figures when available
+    const rig = BR3.makeRig ? BR3.makeRig(R, flagTex) : null;
+    return { draw: rig ? rig.draw : draw, disc: rig ? rig.disc : null, drawPara, drawPet: rig ? rig.drawPet : drawPet, cube, loot, plane, zoneWall, grenade, gloo, target, flagTex };
   };
 })();

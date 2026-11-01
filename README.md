@@ -151,7 +151,8 @@ js/br/engine.js         tiny WebGL renderer: shaders, meshes, fog, billboards
 js/br/data.js           weapons, items, loot, zone, skills, pets, outfits, skins, ranks, modes, CS shop
 js/br/progress.js       profile, level/XP, coins/diamonds, ranks, owned items, rewards, daily login
 js/br/world.js          island terrain, towns, buildings, props, collision, ray casting, gloo obstacles
-js/br/character.js      low-poly characters (outfits, hats, poses, emotes), pets, gloo, plane, loot
+js/br/rig.js            smooth skeletal characters + pets with procedural animation and two-hand gun IK
+js/br/character.js      looks (skin, hair, outfits), parachute, gloo, plane, loot models
 js/br/input.js          touch (stick, look, buttons), mouse + pointer lock, keyboard, gamepad
 js/br/core.js           shared state, settings, renderer setup, fighters, loot helpers, messages
 js/br/combat.js         shooting, damage, knock/revive, kills, pickups, gloo walls, grenades, skills, physics

@@ -34,6 +34,8 @@
     return [x / l, y / l, z / l];
   };
   X.muzzleOf = f => {
+    // the rig stores the real gun-barrel tip every frame it draws the character
+    if (f._mz && performance.now() / 1000 - f._mzT < 0.25) return f._mz.slice();
     const [fx, fz] = fwd(f.yaw), [rx, rz] = rightOf(f.yaw);
     return [f.x + fx * 0.6 + rx * 0.14, f.y + (f.crouch ? 0.98 : 1.38), f.z + fz * 0.6 + rz * 0.14];
   };
@@ -74,7 +76,13 @@
     const mz = X.muzzleOf(f);
     for (let i = 0; i < w.pellets; i++) traceShot(f, ox, oy, oz, X.coneDir(dx, dy, dz, spread), w.range * 1.6, w, mz);
     X.sfxAt(w.sound, f.x, f.z, f.isPlayer ? 1 : 0.85);
-    G.parts.push({ x: mz[0], y: mz[1], z: mz[2], vx: 0, vy: 0, vz: 0, life: 0.05, col: f.tracer || [1, 0.85, 0.3], s: 0.18 });
+    // muzzle flash (2 layers) + ejected shell casing
+    G.parts.push({ x: mz[0], y: mz[1], z: mz[2], vx: 0, vy: 0, vz: 0, life: 0.05, col: [1, 0.95, 0.7], s: 0.12, g: 0 });
+    G.parts.push({ x: mz[0], y: mz[1], z: mz[2], vx: 0, vy: 0, vz: 0, life: 0.06, col: f.tracer || [1, 0.6, 0.15], s: 0.26, g: 0 });
+    if (X.hearVol(f.x, f.z) > 0.4) {
+      const [rx, rz] = rightOf(f.yaw);
+      G.parts.push({ x: mz[0] - Math.sin(f.yaw) * 0.4, y: mz[1], z: mz[2] - Math.cos(f.yaw) * 0.4, vx: rx * rand(1.5, 2.5), vy: rand(1.5, 2.5), vz: rz * rand(1.5, 2.5), life: 0.5, col: [0.85, 0.65, 0.2], s: 0.025 });
+    }
     const P = G.player;
     if (X.enemies(f, P) && P.alive) {
       const range = P.pet === "owl" ? 220 : 110;
@@ -450,6 +458,7 @@
     const g = W.groundAt(f.x, f.z, f.y + 0.05);
     if (f.y <= g) {
       if (!f.onGround && f.vy < -12 && f.isPlayer) SND.sfx("land", 0.6);
+      if (!f.onGround && f.vy < -6 && X.G && X.hearVol(f.x, f.z) > 0.3) dust(f, 10, 2.2);
       f.y = g; f.vy = 0; f.onGround = true;
     } else if (f.y > g + 0.08) f.onGround = false;
     const sp = Math.hypot(f.vx, f.vz);
@@ -458,9 +467,22 @@
     if (sp > 0.6 && f.emote) f.emote = null;
     if (f.onGround && sp > 1.5) {
       f.stepT -= dt * sp / 4.5;
-      if (f.stepT <= 0) { f.stepT = 0.36; if (f.isPlayer) SND.sfx("step", 0.5); else X.sfxAt("step", f.x, f.z, 0.9); }
+      if (f.stepT <= 0) {
+        f.stepT = 0.36;
+        if (f.isPlayer) SND.sfx("step", 0.5); else X.sfxAt("step", f.x, f.z, 0.9);
+        if (X.G && sp > 4 && X.hearVol(f.x, f.z) > 0.45) dust(f, 2, 0.6);
+      }
     }
   };
+  // floating dust puffs at the feet (g < 0 = drifts upward slowly)
+  function dust(f, n, spd) {
+    const P = X.G.parts;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      P.push({ x: f.x + Math.cos(a) * 0.2, y: f.y + 0.06, z: f.z + Math.sin(a) * 0.2, vx: Math.cos(a) * spd * rand(0.5, 1) - f.vx * 0.08, vy: rand(0.2, 0.6), vz: Math.sin(a) * spd * rand(0.5, 1) - f.vz * 0.08, life: rand(0.4, 0.7), col: [0.72, 0.65, 0.52], s: rand(0.06, 0.11), g: -0.4 });
+    }
+  }
+  X.dust = dust;
   X.speedMul = f => (f.buffs.turbo > 0 ? 1.45 : 1) * (X.has(f, "sprint") ? 1.06 : 1) * (f.boost > 60 ? 1.06 : 1);
   X.updateFall = (f, wx, wz, dt, wantPara) => {
     const W = X.WORLD;

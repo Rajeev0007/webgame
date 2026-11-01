@@ -153,7 +153,7 @@
     X.updateGloos(dt);
     for (const t of G.tracers) t.life -= dt;
     G.tracers = G.tracers.filter(t => t.life > 0);
-    for (const p of G.parts) { p.vy -= 9 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.life -= dt; }
+    for (const p of G.parts) { p.vy -= (p.g ?? 9) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.life -= dt; }
     G.parts = G.parts.filter(p => p.life > 0);
     if (G.parts.length > 400) G.parts.splice(0, G.parts.length - 400);
     for (const d of G.dmgNums) { d.t -= dt; d.y += dt * 0.8; }
@@ -167,7 +167,8 @@
     G.hitmT -= dt;
     // pet follows the player
     if (!G.pet) G.pet = { x: P.x, z: P.z, y: P.y, yaw: 0, moving: 0 };
-    const pdx = P.x - Math.sin(P.yaw) * 1.2 + Math.cos(P.yaw) * 0.9 - G.pet.x, pdz = P.z - Math.cos(P.yaw) * 1.2 - Math.sin(P.yaw) * 0.9 - G.pet.z;
+    // pet trots beside you on the left, slightly ahead (stays out of the camera's way)
+    const pdx = P.x + Math.sin(P.yaw) * 0.5 + Math.cos(P.yaw) * 1.25 - G.pet.x, pdz = P.z + Math.cos(P.yaw) * 0.5 - Math.sin(P.yaw) * 1.25 - G.pet.z;
     const pd = Math.hypot(pdx, pdz);
     if (pd > 12) { G.pet.x = P.x; G.pet.z = P.z; }
     else if (pd > 0.3) { const s = Math.min(pd, dt * (pd > 3 ? 8 : 4.5)); G.pet.x += (pdx / pd) * s; G.pet.z += (pdz / pd) * s; G.pet.yaw = Math.atan2(pdx, pdz); }
@@ -191,6 +192,9 @@
       const own = f === G.player;
       dist = G.ads && own ? 1.8 : 4.3;
       sh = G.ads && own ? 0.65 : 0.72;
+      // camera follows the body's motion: running bob + landing dip
+      const an = f._anim;
+      if (an && !G.ads) py += Math.sin(an.ph * 2) * 0.03 * an.run * an.walk - an.land * 0.12 - an.crouch * 0.05;
     }
     const cp = Math.cos(pitch), d = [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp];
     const [rx, rz] = rightOf(yaw);
@@ -204,13 +208,15 @@
     C.x = cx; C.y = cy; C.z = cz; C.dist = dd;
     C.tx = ox + d[0] * 30; C.ty = oy + d[1] * 30; C.tz = oz + d[2] * 30;
     const w = X.weaponOf(G.player);
-    const targetFov = G.ads && w ? 1.2 / WD[w.id].zoom : f.phase === "plane" ? 1.3 : 1.2;
+    const runK = f._anim && f === G.player ? f._anim.run * f._anim.walk : 0;
+    const targetFov = G.ads && w ? 1.2 / WD[w.id].zoom : f.phase === "plane" ? 1.3 : f.phase === "fall" && !f.para ? 1.35 : 1.2 * (1 + 0.08 * runK);
     G.fov += (targetFov - G.fov) * 0.25;
   }
 
   const MM = M4.create();
   function renderWorld(cam, fov, fighters, extra, petList) {
     R.begin(cam, fov);
+    R.drawSky(cam);
     const Wm = X.WORLD.meshes;
     R.draw(Wm.terrain); R.draw(Wm.water); R.draw(Wm.statics); R.draw(Wm.trees);
     const fogFar = R.fog[1] + 10, t = performance.now() / 1000;
@@ -296,6 +302,7 @@
   }
   X.lobbyEmote = type => { if (lobbyScene) lobbyScene.P.emote = { type, t: 0, dur: 3.5 }; SND.sfx("pick"); };
   X.refreshLobbyScene = () => { if (lobbyScene) lobbyScene.key = ""; };
+  X.getLobbyScene = () => lobbyScene; // debug / tests
   function renderLobby(t, dt) {
     if (!lobbyScene || lobbyScene.key !== lobbyKey()) {
       const em = lobbyScene && lobbyScene.P.emote;
@@ -318,7 +325,18 @@
     const P = L.P;
     const pet = { kind: L.pet, x: P.x + rx * 1.0 + fx * 0.5, y: L.gy, z: P.z + rz * 1.0 + fz * 0.5, yaw: L.face + Math.sin(t) * 0.3, moving: 0.2 };
     pet.y = X.WORLD.groundAt(pet.x, pet.z, L.gy + 2);
-    renderWorld(cam, 0.95, L.all, null, [pet]);
+    // glowing pulse ring under your character (lobby stage)
+    const stage = () => {
+      if (!KIT.disc) return;
+      const pulse = 0.85 + Math.sin(t * 2.4) * 0.08;
+      R.blend(true); R.cull(false);
+      M4.trs(MM, P.x, P.y + 0.03, P.z, 0, 0, 0, pulse, 1, pulse);
+      R.draw(KIT.disc, MM, [0.25, 0.85, 1, 0.28], { unlit: true });
+      M4.trs(MM, P.x, P.y + 0.025, P.z, 0, 0, 0, 1.35, 1, 1.35);
+      R.draw(KIT.disc, MM, [1, 0.75, 0.2, 0.12], { unlit: true });
+      R.cull(true); R.blend(false);
+    };
+    renderWorld(cam, 0.95, L.all, stage, [pet]);
     octx.clearRect(0, 0, X.SW, X.SH);
   }
 
@@ -373,6 +391,19 @@
       c.fillStyle = "#000"; c.beginPath(); c.rect(0, 0, SW, SH); c.arc(SW / 2, SH / 2, r, 0, Math.PI * 2, true); c.fill();
       c.strokeStyle = "#000"; c.lineWidth = 1.5; c.beginPath(); c.moveTo(SW / 2 - r, SH / 2); c.lineTo(SW / 2 + r, SH / 2); c.moveTo(SW / 2, SH / 2 - r); c.lineTo(SW / 2, SH / 2 + r); c.stroke();
       c.fillStyle = "#ef4444"; c.beginPath(); c.arc(SW / 2, SH / 2, 2, 0, Math.PI * 2); c.fill();
+    }
+    // speed lines when sprinting or skydiving
+    const an = P._anim;
+    const speedK = P.alive ? (P.phase === "fall" && !P.para ? 1 : an && !G.ads ? Math.max(0, an.run * an.walk - 0.5) * 2 : 0) : 0;
+    if (speedK > 0.05) {
+      c.strokeStyle = `rgba(255,255,255,${0.16 * speedK})`; c.lineWidth = 1.5;
+      c.beginPath();
+      for (let i = 0; i < 18; i++) {
+        const ang = Math.random() * Math.PI * 2, r0 = Math.max(SW, SH) * (0.38 + Math.random() * 0.15), r1 = r0 + 40 + Math.random() * 90;
+        c.moveTo(SW / 2 + Math.cos(ang) * r0, SH / 2 + Math.sin(ang) * r0);
+        c.lineTo(SW / 2 + Math.cos(ang) * r1, SH / 2 + Math.sin(ang) * r1);
+      }
+      c.stroke();
     }
     drawCompass(c);
     drawMinimap(c);

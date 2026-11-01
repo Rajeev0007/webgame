@@ -120,6 +120,33 @@
       this.quad(b[3], b[0], t[0], t[3], col);
       return { w, d, h };
     }
+    // triangle with per-vertex normals / colors (smooth shading)
+    triN(a, b, c, na, nb, nc, ca, cb, cc, ua = [0, 0], ub = [0, 0], uc = [0, 0]) {
+      const v = this.v;
+      v.push(a[0], a[1], a[2], na[0], na[1], na[2], ca[0], ca[1], ca[2], ua[0], ua[1]);
+      v.push(b[0], b[1], b[2], nb[0], nb[1], nb[2], cb[0], cb[1], cb[2], ub[0], ub[1]);
+      v.push(c[0], c[1], c[2], nc[0], nc[1], nc[2], cc[0], cc[1], cc[2], uc[0], uc[1]);
+    }
+    // surface of revolution around Y. prof = [[radius, y, normalRadial, normalY], ...] from top to bottom.
+    // o.sx / o.sz squash the shape (ellipsoids), o.uv = front-projected UVs, o.colAt(t) = per-ring color
+    lathe(cx, cy, cz, prof, seg, col, o = {}) {
+      const sx = o.sx || 1, sz = o.sz || 1, n = prof.length;
+      const P = (p, t) => [cx + p[0] * Math.cos(t) * sx, cy + p[1], cz + p[0] * Math.sin(t) * sz];
+      const N = (p, t) => { const x = p[2] * Math.cos(t) / sx, y = p[3], z = p[2] * Math.sin(t) / sz, l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+      const U = (p, t, j) => (o.uv ? [0.5 + 0.5 * Math.cos(t) * Math.min(1, p[0] / (o.uvR || 1)), j / (n - 1)] : [0, 0]);
+      for (let j = 0; j < n - 1; j++) {
+        const p0 = prof[j], p1 = prof[j + 1];
+        const c0 = o.colAt ? o.colAt(j / (n - 1)) : col, c1 = o.colAt ? o.colAt((j + 1) / (n - 1)) : col;
+        for (let i = 0; i < seg; i++) {
+          const t0 = (i / seg) * Math.PI * 2, t1 = ((i + 1) / seg) * Math.PI * 2;
+          const A = P(p0, t0), B = P(p0, t1), C = P(p1, t1), D = P(p1, t0);
+          const nA = N(p0, t0), nB = N(p0, t1), nC = N(p1, t1), nD = N(p1, t0);
+          const uA = U(p0, t0, j), uB = U(p0, t1, j), uC = U(p1, t1, j + 1), uD = U(p1, t0, j + 1);
+          this.triN(A, B, C, nA, nB, nC, c0, c0, c1, uA, uB, uC);
+          this.triN(A, C, D, nA, nC, nD, c0, c1, c1, uA, uC, uD);
+        }
+      }
+    }
     append(g) { for (let i = 0; i < g.v.length; i++) this.v.push(g.v[i]); }
     get count() { return this.v.length / 11; }
   }
@@ -148,13 +175,25 @@ precision mediump float;
 varying vec3 vCol; varying vec3 vNor; varying vec2 vUV; varying vec3 vW;
 uniform vec3 uLight; uniform vec3 uFogCol; uniform vec2 uFog; uniform vec3 uCam;
 uniform vec4 uTint; uniform float uUnlit; uniform sampler2D uTex; uniform float uTexMix; uniform vec3 uEmit;
+uniform float uSpec; uniform float uRim; uniform float uNoFog;
 void main(){
   vec3 base = vCol * uTint.rgb;
   if (uTexMix > 0.5) base = texture2D(uTex, vUV).rgb * uTint.rgb;
-  float l = 1.0;
-  if (uUnlit < 0.5) { vec3 n = normalize(vNor); l = 0.48 + 0.62 * max(dot(n, uLight), 0.0) + 0.08 * n.y; }
-  vec3 c = base * l + uEmit;
-  float f = clamp((distance(vW, uCam) - uFog.x) / (uFog.y - uFog.x), 0.0, 1.0);
+  vec3 c;
+  if (uUnlit > 0.5) c = base + uEmit;
+  else {
+    vec3 n = normalize(vNor);
+    vec3 v = normalize(uCam - vW);
+    float d = max(dot(n, uLight), 0.0);
+    // sky / ground hemisphere ambient + warm sun + soft specular + cool rim light
+    vec3 amb = mix(vec3(0.40, 0.36, 0.31), vec3(0.50, 0.58, 0.70), n.y * 0.5 + 0.5);
+    vec3 col = base * (amb + vec3(1.0, 0.94, 0.84) * d * 0.74);
+    vec3 h = normalize(uLight + v);
+    col += uSpec * pow(max(dot(n, h), 0.0), 28.0) * vec3(1.0, 0.95, 0.86);
+    col += uRim * pow(1.0 - max(dot(n, v), 0.0), 3.0) * vec3(0.55, 0.66, 0.9);
+    c = col + uEmit;
+  }
+  float f = uNoFog > 0.5 ? 0.0 : clamp((distance(vW, uCam) - uFog.x) / (uFog.y - uFog.x), 0.0, 1.0);
   gl_FragColor = vec4(mix(c, uFogCol, f), uTint.a);
 }`;
 
@@ -180,7 +219,7 @@ void main(){
       this.a = {};
       for (const n of ["aPos", "aNor", "aCol", "aUV"]) { this.a[n] = gl.getAttribLocation(p, n); gl.enableVertexAttribArray(this.a[n]); }
       this.u = {};
-      for (const n of ["uVP", "uM", "uLight", "uFogCol", "uFog", "uCam", "uTint", "uUnlit", "uTex", "uTexMix", "uEmit"]) this.u[n] = gl.getUniformLocation(p, n);
+      for (const n of ["uVP", "uM", "uLight", "uFogCol", "uFog", "uCam", "uTint", "uUnlit", "uTex", "uTexMix", "uEmit", "uSpec", "uRim", "uNoFog"]) this.u[n] = gl.getUniformLocation(p, n);
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
       gl.cullFace(gl.BACK);
@@ -250,8 +289,31 @@ void main(){
       gl.uniform3f(this.u.uEmit, 0, 0, 0);
       gl.uniform1f(this.u.uTexMix, 0);
       gl.uniform1f(this.u.uUnlit, 0);
+      gl.uniform1f(this.u.uSpec, 0);
+      gl.uniform1f(this.u.uRim, 0);
+      gl.uniform1f(this.u.uNoFog, 0);
       this.cam = cam;
       this.bound = null;
+    }
+    // shiny / rim-lit material for characters (reset with material(0, 0))
+    material(spec, rim) { this.gl.uniform1f(this.u.uSpec, spec); this.gl.uniform1f(this.u.uRim, rim); }
+    // gradient sky dome that follows the camera
+    drawSky(cam) {
+      const gl = this.gl;
+      if (!this.sky) {
+        const g = new BR3.Geo(), top = [0.26, 0.5, 0.9], hor = this.fogCol.slice(), prof = [];
+        const N = 12, a0 = Math.PI / 2, a1 = -0.4;
+        for (let i = 0; i <= N; i++) { const a = a0 + (a1 - a0) * i / N; prof.push([Math.cos(a), Math.sin(a), Math.cos(a), Math.sin(a)]); }
+        g.lathe(0, 0, 0, prof, 24, [1, 1, 1], { colAt: t => { const k = Math.min(1, t / 0.79), e = k * k * (3 - 2 * k); return [top[0] + (hor[0] - top[0]) * e, top[1] + (hor[1] - top[1]) * e, top[2] + (hor[2] - top[2]) * e]; } });
+        this.sky = this.mesh(g);
+      }
+      const r = this.fog[1] + 20;
+      M4.trs(this.tmp, cam.x, cam.y, cam.z, 0, 0, 0, r, r, r);
+      gl.depthMask(false); gl.disable(gl.CULL_FACE);
+      gl.uniform1f(this.u.uNoFog, 1);
+      this.draw(this.sky, this.tmp, null, { unlit: true });
+      gl.uniform1f(this.u.uNoFog, 0);
+      gl.enable(gl.CULL_FACE); gl.depthMask(true);
     }
     bind(m) {
       if (this.bound === m.buf) return;
