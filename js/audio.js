@@ -120,12 +120,15 @@
     wind:    () => { noise(1.4, 0.16, 700, 0, OUT, "bandpass"); noise(1.4, 0.08, 2200, 0.2, OUT, "bandpass"); },
     boom:    () => { noise(0.06, 0.8, 3000, 0, OUT, "highpass"); noise(1.4, 0.9, 420); tone(55, 0.9, "sine", 0.55, 22); noise(2.2, 0.25, 220, 0.15, OUT, "lowpass"); },
     pin:     () => { tone(2200, 0.04, "square", 0.04, 1800); tone(1600, 0.05, "triangle", 0.03, 0, 0.08); },
-    step:    () => { noise(0.05, 0.22, 650 + Math.random() * 300, 0, OUT, "lowpass"); noise(0.03, 0.06, 2800, 0.01, OUT, "bandpass"); },
+    // footsteps: heel thud + grass crunch (outdoors) / heel + sole click (floors, roofs, crates)
+    step:    () => { const r = Math.random(); noise(0.045, 0.2, 260 + r * 120, 0, OUT, "lowpass"); noise(0.07, 0.09, 1800 + r * 1600, 0.015, OUT, "bandpass"); noise(0.04, 0.05, 4200, 0.05, OUT, "highpass"); },
+    stepHard:() => { const r = Math.random(); tone(150 + r * 40, 0.05, "sine", 0.16, 90); noise(0.025, 0.16, 1500 + r * 700, 0, OUT, "bandpass"); noise(0.02, 0.07, 3200, 0.06, OUT, "bandpass"); },
+    vault:   () => { noise(0.12, 0.14, 1400, 0, OUT, "bandpass"); tone(120, 0.08, "sine", 0.14, 70, 0.05); noise(0.05, 0.16, 700, 0.2, OUT, "lowpass"); },
     land:    () => { noise(0.18, 0.45, 380); tone(70, 0.16, "sine", 0.3, 38); },
     booyah:  () => [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => { tone(f, 0.35, "triangle", 0.11, 0, i * 0.11); tone(f / 2, 0.35, "sine", 0.06, 0, i * 0.11); }),
   };
   // sounds that get a big reverb tail (outdoor echo)
-  const WET = { pistol: 0.35, smg: 0.3, ar: 0.45, dmr: 0.5, sniper: 0.7, shotgun: 0.5, boom: 0.8, hurt: 0.1, land: 0.15, step: 0.05, zone: 0.3 };
+  const WET = { pistol: 0.35, smg: 0.3, ar: 0.45, dmr: 0.5, sniper: 0.7, shotgun: 0.5, boom: 0.8, hurt: 0.1, land: 0.15, step: 0.05, stepHard: 0.18, vault: 0.1, zone: 0.3 };
 
   // ---------- reverb (generated impulse response) ----------
   let reverb = null, revIn = null;

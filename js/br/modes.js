@@ -166,7 +166,7 @@
     const idx = [0, 0];
     for (const f of G.fighters) {
       if (!f.alive) { f.slots = [null, null]; f.cur = -1; f.vest = 0; f.helmet = 0; for (const k in f.ammo) f.ammo[k] = 0; for (const k in f.items) f.items[k] = 0; }
-      f.alive = true; f.dead = false; f.knocked = false; f.hp = 100; f.boost = 0; f.bleed = 0; f.useT = 0; f.reloadT = 0; f.reviveOf = null; f.emote = null; f.skillCd = Math.min(f.skillCd, 10);
+      f.alive = true; f.dead = false; f.knocked = false; f.hp = 100; f.boost = 0; f.bleed = 0; f.useT = 0; f.reloadT = 0; f.reviveOf = null; f.emote = null; f.crouch = f.prone = false; f.vault = null; f.vaultK = 0; f.lean = 0; f.skillCd = Math.min(f.skillCd, 10);
       for (const k in f.buffs) f.buffs[k] = 0;
       if (C.round > 1) f.coins += 500 + (f.team === C.lastWinner ? 200 : 0);
       if (!f.slots[0] && !f.slots[1]) { f.slots[0] = { id: "pistol", mag: 15 }; f.cur = 0; }

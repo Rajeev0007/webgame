@@ -11,6 +11,18 @@
 
   // =================================================================== player
   const camDir = () => { const C = X.G.cam, cp = Math.cos(C.pitch); return [Math.sin(C.yaw) * cp, Math.sin(C.pitch), Math.cos(C.yaw) * cp]; };
+  // movement weight per gun (BGMI-style: snipers are slower to carry than pistols)
+  const GUN_WEIGHT = { pistol: 1.04, smg: 1.02, shotgun: 0.97, ar: 0.98, m4: 0.98, golden: 0.98, dmr: 0.95, sniper: 0.93 };
+  // stance changes take a moment (you're slow while getting up / going down)
+  function setStance(P, st) {
+    const was = P.prone ? "prone" : P.crouch ? "crouch" : "stand";
+    if (was === st) return;
+    P.prone = st === "prone"; P.crouch = st === "crouch";
+    P.stanceT = was === "prone" || st === "prone" ? 0.4 : 0.12;
+    if (P.prone) { P.lean = 0; IN.leanT = 0; }
+    SND.sfx("vault", 0.35);
+  }
+  X.setStance = setStance;
   function updatePlayer(dt) {
     const G = X.G, P = G.player, C = G.cam;
     const L = IN.takeLook();
@@ -26,24 +38,44 @@
 
     const slot = X.weaponOf(P), w = slot ? WD[slot.id] : null;
     const buyPhase = G.cs && G.cs.phase === "buy";
-    G.ads = !!(w && !P.knocked && (IN.aiming() || G.adsToggle) && P.useT <= 0 && P.reloadT <= 0);
+    if (P.vault) { X.physics(P, 0, 0, 0, dt); P.pitch = C.pitch; P.lean += (0 - P.lean) * clamp(10 * dt, 0, 1); X.syncDraw(P); G.prevFire = IN.firing(); return; }
+    if (P.stanceT > 0) P.stanceT -= dt;
+    if (P.prone) C.pitch = clamp(C.pitch, -0.5, 0.62);
+    // sprint: forward only (Shift / push the stick past the ring), stands you up, cancelled by aiming or shooting
+    const fwdIn = mv.y > 0.45 && Math.abs(mv.x) <= mv.y + 0.05;
+    let sprint = IN.sprint() && fwdIn && !P.knocked && P.useT <= 0 && !(IN.aiming() || G.adsToggle) && !(IN.firing() && w);
+    if (sprint && P.prone) { setStance(P, "stand"); sprint = false; }
+    if (sprint && P.crouch && P.stanceT <= 0) setStance(P, "stand");
+    if (P.sprinting && !sprint && IN.firing() && w) P.fireDelay = 0.13; // sprint-to-fire time
+    P.sprinting = sprint && P.onGround && !P.prone;
+    G.ads = !!(w && !P.knocked && !P.sprinting && (IN.aiming() || G.adsToggle) && P.useT <= 0 && P.reloadT <= 0);
     $("touch").querySelector(".aim").classList.toggle("on", G.ads);
-    let speed = 4.6;
-    const sprint = IN.sprint() && mv.y > 0.3 && !G.ads && P.useT <= 0 && !P.crouch;
-    if (sprint) speed = 6.7;
-    if (P.crouch) speed = 2.5;
-    if (G.ads) speed = 2.9;
+    // speed: analog stick walks slowly, strafing / backpedal is slower than running forward, heavy guns slow you
+    const dirF = mv.y < -0.2 ? 0.78 : 1 - Math.min(1, Math.abs(mv.x)) * (mv.y > 0.2 ? 0.04 : 0.1);
+    let speed = (P.sprinting ? 6.4 : 4.6 * dirF);
+    if (P.crouch) speed = 2.6 * dirF;
+    if (P.prone) speed = 1.15;
+    if (G.ads) speed = Math.min(speed, P.prone ? 0.7 : P.crouch ? 1.9 : 2.7);
+    if (w) speed *= GUN_WEIGHT[slot.id] || 1;
     if (P.useT > 0) speed *= 0.55;
+    if (P.landRec > 0) speed *= 0.45;
+    if (P.stanceT > 0) speed *= 0.35;
     if (P.knocked) speed = 1.1;
     if (P.reviveOf) speed = 0;
     X.physics(P, wx, wz, speed * (P.knocked ? 1 : X.speedMul(P)), dt);
+    // peek (lean): not while sprinting, prone, knocked or in the air
+    let lt = IN.lean();
+    if (P.sprinting && IN.leanT) IN.leanT = 0;
+    if (P.sprinting || P.prone || P.knocked || !P.onGround) lt = 0;
+    P.leanT = lt;
+    P.lean += (lt - P.lean) * clamp(9 * dt, 0, 1);
     const targetYaw = (w && !P.knocked) || IN.firing() ? C.yaw : (Math.hypot(wx, wz) > 0.1 ? Math.atan2(wx, wz) : P.yaw);
-    P.yaw += wrapA(targetYaw - P.yaw) * clamp(14 * dt, 0, 1);
+    P.yaw += wrapA(targetYaw - P.yaw) * clamp((P.prone ? 6 : 14) * dt, 0, 1);
     P.pitch = C.pitch;
     if (P.knocked) { X.syncDraw(P); return; }
 
     if (X.S.assist && IN.mode !== "desktop" && w) aimAssist(dt);
-    P.fireCd -= dt; P.punchT -= dt;
+    P.fireCd -= dt; P.punchT -= dt; if (P.fireDelay > 0) P.fireDelay -= dt;
     if (P.reloadT > 0) { P.reloadT -= dt; if (P.reloadT <= 0) X.finishReload(P); }
     if (P.useT > 0) { P.useT -= dt; if (P.useT <= 0) X.finishUse(P); }
     G.bloom = Math.max(0, G.bloom - dt * 6);
@@ -65,10 +97,11 @@
     else if (want && w && P.useT <= 0) {
       if (P.reloadT > 0) { /* reloading */ }
       else if (slot.mag <= 0) { if (!G.prevFire) { SND.sfx("empty"); X.startReload(P); } }
-      else if (P.fireCd <= 0 && (w.auto || !G.prevFire)) {
+      else if (P.fireCd <= 0 && (P.fireDelay || 0) <= 0 && (w.auto || !G.prevFire)) {
         let spread = G.ads ? w.ads : w.hip;
         spread *= P.moving > 0.3 ? 1.6 : 1;
         if (P.crouch) spread *= 0.75;
+        if (P.prone) spread *= 0.55;
         if (!P.onGround) spread *= 2.2;
         spread += G.bloom;
         const d = camDir(), c = G.cam;
@@ -191,15 +224,31 @@
     else if (f.phase === "fall") { px = f.x; py = f.y + 1.5; pz = f.z; dist = f.para ? 9 : 6; }
     else {
       px = f.x; py = X.eyeY(f) + 0.22 + (f.dead ? -0.6 : 0); pz = f.z;
-      const own = f === G.player;
-      dist = G.ads && own ? 1.8 : 4.3;
-      sh = G.ads && own ? 0.65 : 0.72;
-      // camera follows the body's motion: running bob + landing dip
-      const an = f._anim;
-      if (an && !G.ads) py += Math.sin(an.ph * 2) * 0.03 * an.run * an.walk - an.land * 0.12 - an.crouch * 0.05;
+      const own = f === G.player, ads = G.ads && own;
+      dist = ads ? 1.8 : f.prone ? 3.5 : 4.3;
+      // peek: right lean pushes the camera further right, left lean swaps it to the left shoulder
+      const ln = own ? f.lean || 0 : 0;
+      sh = (ads ? 0.65 : 0.72) + (ln > 0 ? ln * 0.45 : ln * 1.35);
+      // head bob locked to the stride clock (dips at every footfall), sideways sway, landing dip
+      const an = f._anim, gsp = clamp(Math.hypot(f.vx, f.vz) / 6.4, 0, 1);
+      if (f.onGround && !f.prone && !ads) { py += 0.018 * gsp - Math.abs(Math.sin(f.gait || 0)) * 0.05 * gsp; sh += Math.sin(f.gait || 0) * 0.035 * gsp; }
+      if (an) py -= an.land * 0.14;
     }
+    // smooth vertical follow (stance changes, vaults, steps) without lagging the aim
+    const now = performance.now(), cdt = Math.min(0.05, (now - (C.lastT || now)) / 1000);
+    C.lastT = now;
+    if (C.sy == null || f.phase !== "ground" || Math.abs(py - C.sy) > 2.5 || C.sf !== f) C.sy = py;
+    else C.sy += (py - C.sy) * Math.min(1, 13 * cdt);
+    C.sf = f;
+    py = C.sy;
+    if (C.sd == null || f.phase !== "ground") C.sd = dist; else C.sd += (dist - C.sd) * Math.min(1, 14 * cdt);
+    dist = C.sd;
     const cp = Math.cos(pitch), d = [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp];
     const [rx, rz] = rightOf(yaw);
+    if (f.phase === "ground" && Math.abs(sh) > 0.05) {
+      const sg = Math.sign(sh), t = X.WORLD.raycast(px, py, pz, rx * sg, 0, rz * sg, Math.abs(sh) + 0.25);
+      if (t !== Infinity) sh = sg * Math.max(0, t - 0.25);
+    }
     const ox = px + rx * sh, oy = py, oz = pz + rz * sh;
     let dd = dist;
     if (f.phase === "ground") { const t = X.WORLD.raycast(ox, oy, oz, -d[0], -d[1], -d[2], dist + 0.3); if (t !== Infinity) dd = Math.max(0.35, t - 0.3); }
@@ -210,9 +259,9 @@
     C.x = cx; C.y = cy; C.z = cz; C.dist = dd;
     C.tx = ox + d[0] * 30; C.ty = oy + d[1] * 30; C.tz = oz + d[2] * 30;
     const w = X.weaponOf(G.player);
-    const runK = f._anim && f === G.player ? f._anim.run * f._anim.walk : 0;
-    const targetFov = G.ads && w ? 1.2 / WD[w.id].zoom : f.phase === "plane" ? 1.3 : f.phase === "fall" && !f.para ? 1.35 : 1.2 * (1 + 0.08 * runK);
-    G.fov += (targetFov - G.fov) * 0.25;
+    const runK = f === G.player && f.sprinting ? 1 : f._anim && f === G.player ? f._anim.run * f._anim.walk * 0.5 : 0;
+    const targetFov = G.ads && w ? 1.2 / WD[w.id].zoom : f.phase === "plane" ? 1.3 : f.phase === "fall" && !f.para ? 1.35 : 1.2 * (1 + 0.09 * runK);
+    G.fov += (targetFov - G.fov) * Math.min(1, 12 * cdt);
   }
 
   const MM = M4.create();
@@ -363,7 +412,7 @@
       c.fillStyle = f.knocked ? "#ef4444" : mate ? "#38bdf8" : v > 50 ? "#f1f5f9" : v > 25 ? "#fde047" : "#ef4444";
       c.fillRect(p.x - 26, p.y - 2, 52 * (v / 100), 5);
       c.fillStyle = mate ? "#7dd3fc" : "#fff"; c.strokeStyle = "#000"; c.lineWidth = 3;
-      const label = (f.knocked ? "🩸 " : "") + f.name + (mate && d > 25 ? ` · ${Math.round(d)}m` : "");
+      const label = (f.knocked ? "DOWN · " : "") + f.name + (mate && d > 25 ? ` · ${Math.round(d)}m` : "");
       c.strokeText(label, p.x, p.y - 6); c.fillText(label, p.x, p.y - 6);
     }
     c.font = "900 16px sans-serif";
@@ -471,7 +520,7 @@
     c.restore();
     c.strokeStyle = "rgba(255,255,255,0.4)"; c.lineWidth = 1; c.strokeRect(x0, y0, size, size);
     const t = W.towns.reduce((b, t2) => (Math.hypot(t2.x - px, t2.z - pz) < Math.hypot(b.x - px, b.z - pz) ? t2 : b), W.towns[0]);
-    if (t && Math.hypot(t.x - px, t.z - pz) < 60) { c.fillStyle = "#fff"; c.font = "bold 11px sans-serif"; c.textAlign = "left"; c.fillText("📍 " + t.name, x0 + 4, y0 + size + 13); }
+    if (t && Math.hypot(t.x - px, t.z - pz) < 60) { c.fillStyle = "#fff"; c.font = "bold 11px sans-serif"; c.textAlign = "left"; const py = y0 + size + 13; c.fillStyle = "#ef4444"; c.beginPath(); c.arc(x0 + 8, py - 5, 4, Math.PI, 0); c.lineTo(x0 + 8, py + 2); c.closePath(); c.fill(); c.fillStyle = "#fff"; c.fillText(t.name, x0 + 15, py); }
   }
   function drawFullMap() {
     const G = X.G, W = X.WORLD, cv = $("mapCanvas");
@@ -487,7 +536,7 @@
     if (G.plane.dur > 0 && G.plane.t < G.plane.dur) {
       c.strokeStyle = "rgba(255,255,255,0.8)"; c.setLineDash([8, 8]); c.lineWidth = 2 * D;
       c.beginPath(); c.moveTo(G.plane.sx * k, G.plane.sz * k); c.lineTo(G.plane.ex * k, G.plane.ez * k); c.stroke(); c.setLineDash([]);
-      c.fillStyle = "#fff"; c.font = `${16 * D}px sans-serif`; c.fillText("✈️", G.plane.x * k - 8, G.plane.z * k + 6);
+      { const px = G.plane.x * k, pz = G.plane.z * k, u = 7 * D, ang = Math.atan2(G.plane.ex - G.plane.sx, G.plane.ez - G.plane.sz); c.save(); c.translate(px, pz); c.rotate(-ang); c.fillStyle = "#fff"; c.strokeStyle = "#000"; c.lineWidth = 1.5 * D; c.beginPath(); c.moveTo(0, 1.6 * u); c.lineTo(1.5 * u, -0.4 * u); c.lineTo(0.25 * u, -0.1 * u); c.lineTo(0.3 * u, -1.2 * u); c.lineTo(0, -0.9 * u); c.lineTo(-0.3 * u, -1.2 * u); c.lineTo(-0.25 * u, -0.1 * u); c.lineTo(-1.5 * u, -0.4 * u); c.closePath(); c.stroke(); c.fill(); c.restore(); }
     }
     c.font = `bold ${12 * D}px sans-serif`; c.textAlign = "center";
     for (const t of W.towns) { c.fillStyle = "#000"; c.fillText(t.name, t.x * k + 1, t.z * k + 1); c.fillStyle = "#fff"; c.fillText(t.name, t.x * k, t.z * k); }
@@ -592,12 +641,13 @@
     const near = !km && P.alive && !P.knocked && P.phase === "ground" ? X.nearestWeaponLoot(P) : null;
     const pr = $("prompt"), pb = $("pickBtn"), rb = $("reviveBtn");
     setC(rb, "hidden", !(km && IN.mode === "touch"));
-    if (km) { pb.classList.add("hidden"); if (IN.mode !== "touch") { pr.classList.remove("hidden"); setT("prompt", `[Hold ${IN.mode === "gamepad" ? "X" : "E"}] Revive ${km.name}`); } else pr.classList.add("hidden"); }
+    if (km) { pb.classList.add("hidden"); if (IN.mode !== "touch") { pr.classList.remove("hidden"); setT("prompt", `[Hold ${IN.mode === "gamepad" ? "X" : "F"}] Revive ${km.name}`); } else pr.classList.add("hidden"); }
     else if (near) {
       const full = P.slots[0] && P.slots[1];
       if (IN.mode === "touch") { pr.classList.add("hidden"); pb.classList.remove("hidden"); setT("pickBtn", `✋ ${WD[near.id].short}${full ? " ⇄" : ""}`); }
-      else { pb.classList.add("hidden"); pr.classList.remove("hidden"); setT("prompt", `[${IN.mode === "gamepad" ? "X" : "E"}] Pick up ${X.lootLabel(near)}${full ? " (swap)" : ""}`); }
-    } else { pr.classList.add("hidden"); pb.classList.add("hidden"); }
+      else { pb.classList.add("hidden"); pr.classList.remove("hidden"); setT("prompt", `[${IN.mode === "gamepad" ? "X" : "F"}] Pick up ${X.lootLabel(near)}${full ? " (swap)" : ""}`); }
+    } else if (G.vaultHint && IN.mode !== "touch") { pb.classList.add("hidden"); pr.classList.remove("hidden"); setT("prompt", `[${IN.mode === "gamepad" ? "A" : "Space"}] ${G.vaultHint.over ? "Vault" : "Climb"}`); }
+    else { pr.classList.add("hidden"); pb.classList.add("hidden"); }
     $("zoneWarn").classList.toggle("hidden", !(P.alive && P.phase === "ground" && X.outsideZone(P) && !G.training));
     const cr = $("cross");
     setC(cr, "hide", !P.alive || P.phase !== "ground" || P.knocked || (G.ads && w && WD[w.id].zoom > 2.4));
@@ -608,6 +658,13 @@
     const hm = $("hitm");
     if (G.hitmT > 0) { hm.classList.remove("hidden"); hm.className = G.hitmKind || ""; } else hm.classList.add("hidden");
     setC($("touch").querySelector(".crouch"), "on", P.crouch);
+    setC($("touch").querySelector(".prone"), "on", P.prone);
+    setC($("touch").querySelector(".leanL"), "on", IN.leanT === -1);
+    setC($("touch").querySelector(".leanR"), "on", IN.leanT === 1);
+    // vault / climb hint (checked a few times per second)
+    G.vaultT = (G.vaultT || 0) - 1 / 60;
+    if (G.vaultT <= 0) { G.vaultT = 0.15; G.vaultHint = P.alive && P.phase === "ground" ? X.findVault(P) : null; }
+    setC($("touch").querySelector(".jump"), "vault", !!G.vaultHint);
     if (G.mapOpen) drawFullMap();
     if (G.cs && !$("buyMenu").classList.contains("hidden")) { setT("buyCoins", String(P.coins)); }
   }
@@ -741,9 +798,19 @@
       if (Math.hypot(G.plane.x - X.WORLD.center.x, G.plane.z - X.WORLD.center.z) > 285) { X.toast("🌊 Wait until you're over the island!"); return; }
       X.leavePlane(P);
     } else if (P.phase === "fall") { if (!P.para) { P.para = true; SND.sfx("wind"); } }
-    else if (P.onGround && !P.knocked) { P.vy = 6.2; P.onGround = false; P.crouch = false; }
+    else if (P.knocked || P.vault || !P.onGround) return;
+    else if (P.prone) setStance(P, "crouch");
+    else {
+      const v = X.findVault(P);
+      if (v) X.startVault(P, v);
+      else if (P.crouch) setStance(P, "stand");
+      else { P.vy = 5.9; P.onGround = false; P.vx *= 1.04; P.vz *= 1.04; }
+    }
   });
-  IN.on("crouch", () => { if (ground()) X.G.player.crouch = !X.G.player.crouch; });
+  IN.on("crouch", () => { if (!ground() || X.G.player.vault) return; const P = X.G.player; setStance(P, P.crouch ? "stand" : "crouch"); });
+  IN.on("prone", () => { if (!ground() || X.G.player.vault || !X.G.player.onGround) return; const P = X.G.player; setStance(P, P.prone ? "stand" : "prone"); });
+  IN.on("leanL", () => { if (ground()) IN.leanT = IN.leanT === -1 ? 0 : -1; });
+  IN.on("leanR", () => { if (ground()) IN.leanT = IN.leanT === 1 ? 0 : 1; });
   IN.on("reload", () => { if (ground()) X.startReload(X.G.player); });
   IN.on("interact", () => {
     if (!ground()) return;

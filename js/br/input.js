@@ -10,6 +10,7 @@
     fireTouch: { id: null, x: 0, y: 0 },
     btn: {},            // held on-screen buttons
     pad: null, padPrev: [],
+    leanT: 0,          // on-screen peek toggle: -1 left, 0 none, 1 right
     sens: 1, invertY: false,
   });
   const handlers = {};
@@ -38,10 +39,10 @@
     if (["Space", "ArrowUp", "ArrowDown", "Tab"].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
     const map = {
-      KeyR: "reload", KeyE: "interact", KeyF: "interact", KeyC: "crouch", ControlLeft: "crouch", Space: "jump",
+      KeyR: "reload", KeyF: "interact", KeyC: "crouch", ControlLeft: "crouch", KeyZ: "prone", Space: "jump",
       Digit1: "slot0", Digit2: "slot1", Digit3: "slot2", KeyX: "holster", KeyG: "grenade", KeyH: "heal", Digit4: "heal",
       KeyM: "map", Tab: "score", KeyP: "pause", Escape: "escape", KeyB: "drink",
-      KeyQ: "skill", KeyT: "gloo", KeyZ: "emote", KeyY: "shop",
+      KeyV: "skill", KeyT: "gloo", KeyJ: "emote", KeyY: "shop",
     };
     if (map[e.code]) emit(map[e.code], "key");
   });
@@ -162,8 +163,9 @@
     if (!b[6] && I.padPrev[6]) emit("aimUp");
     if (edge(8)) emit("map", "pad");
     if (edge(9)) emit("pause", "pad");
-    if (edge(12)) emit("slot0"); if (edge(13)) emit("slot1");
-    if (edge(14)) emit("skill", "pad"); if (edge(15)) emit("gloo", "pad");
+    if (edge(12)) emit("slot0"); if (edge(13)) emit("gloo", "pad"); if (edge(11)) emit("skill", "pad");
+    if (edge(14)) emit("leanL", "pad"); if (edge(15)) emit("leanR", "pad");
+    if (b[1] && I.padPrev[1]) { I.crouchHold = (I.crouchHold || 0) + dt; if (I.crouchHold > 0.45 && !I.proneSent) { I.proneSent = true; emit("prone", "pad"); } } else { I.crouchHold = 0; I.proneSent = false; }
     I.padPrev = b;
   };
 
@@ -186,8 +188,14 @@
   };
   I.firing = () => I.mouseDown || I.btn.fire || (I.pad && I.pad.b[7]);
   // held "use" (revive a teammate): E/F key, the on-screen revive/pick button, or controller X
-  I.holdUse = () => I.keys.KeyE || I.keys.KeyF || I.btn.interact || I.btn.revive || (I.pad && I.pad.b[2]);
+  I.holdUse = () => I.keys.KeyF || I.btn.interact || I.btn.revive || (I.pad && I.pad.b[2]);
   I.aiming = () => I.aimHeld || (I.pad && I.pad.b[6]);
   I.sprint = () => I.keys.ShiftLeft || I.keys.ShiftRight || (I.pad && I.pad.b[10]) || (I.stick.active && Math.hypot(I.stick.x - I.stick.ox, I.stick.y - I.stick.oy) > STICK_R * 1.25);
+  // BGMI-style peek: hold Q / E on keyboard, toggle buttons on touch, D-pad left/right on a controller
+  I.lean = () => {
+    if (I.keys.KeyQ && !I.keys.KeyE) return -1;
+    if (I.keys.KeyE && !I.keys.KeyQ) return 1;
+    return I.leanT;
+  };
   I.takeLook = () => { const l = { dx: I.look.dx, dy: I.look.dy }; I.look.dx = I.look.dy = 0; return l; };
 })();

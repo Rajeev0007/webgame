@@ -213,15 +213,31 @@ Use only models you have the rights to. Don't use files ripped from Free Fire, B
 | Look / aim | Drag on the right side | Mouse (click the game to lock) | Right stick |
 | Fire | 🔥 big button, which you can drag to aim while shooting. There's also a 2nd 🔥 on the left. | Left mouse | RT |
 | Scope | 🎯 (tap on / off) | Right mouse (hold) | LT |
-| Jump / skydive / parachute | ⤒ or 🪂 JUMP | Space | A |
-| Crouch | ⤓ | C / Ctrl | B |
+| Jump / skydive / parachute | Jump button or 🪂 JUMP | Space | A |
+| Vault / climb low cover | Jump button (turns orange next to cover) | Space | A |
+| Crouch | Crouch button | C / Ctrl | B |
+| Prone | Prone button | Z | Hold B |
+| Peek left / right | Peek buttons by the minimap (tap to toggle) | Hold Q / E | D-pad ◀ / ▶ |
 | Reload | ↻ | R | X |
-| Pick up gun | ✋ button | E / F | X |
+| Pick up gun / hold to revive | ✋ button | F | X |
 | Switch weapon | Tap a weapon slot | 1 / 2 / mouse wheel (X holsters) | Y |
 | Heal / drink | 🩹 / 🥤 | H / B | RB |
 | Grenade | 💣 | G | LB |
+| Skill | SKILL button | V | R3 |
+| Gloo wall | Gloo button | T | D-pad ▼ |
+| Emote | 😀 (top right) | J | – |
 | Map | 🗺️ | M / Tab | View |
 | Pause | ⏸ | Esc / P | Menu |
+
+**Movement feels like BGMI / Free Fire:**
+- Momentum: you speed up and slow down over a fraction of a second, and sharp turns while sprinting cost speed.
+- Sprint only works forward. Aiming or shooting cancels it, with a short sprint-to-fire delay.
+- Running uphill is slower and backpedalling is slower than running forward. Heavy guns (sniper, DMR) slow you a little.
+- Stances: stand, crouch (quieter, more accurate) and prone (smallest target, best accuracy, crawl only).
+- Peek around cover with Q / E. The camera swaps shoulders on a left peek.
+- Vault over waist-high cover and climb onto crates with Space.
+- Hard landings slow you for a moment, and big falls (about 5 m and higher) hurt in offline modes.
+- Footsteps match the stride, sound different on grass and on floors, and you can hear other players' footsteps (online too).
 
 On phones and controllers, **aim assist** (on by default) gently pulls your aim onto enemies near the crosshair.
 
@@ -235,11 +251,12 @@ index.html              Brainrot Royale 3D (lobby, HUD, menus)
 css/br.css              styles + mobile control layout
 js/countries.js         197 countries, parody parties, voices (shared with classic)
 js/audio.js             synthesized SFX (guns, footsteps, plane...), music, voices (shared)
+js/br/icons.js          custom SVG icon set; swaps every emoji in the HUD and menus for a game icon
 js/br/engine.js         tiny WebGL renderer: shaders, meshes, fog, billboards
 js/br/data.js           weapons, items, loot, zone, skills, pets, outfits, skins, ranks, modes, CS shop
 js/br/progress.js       profile, level/XP, coins/diamonds, ranks, owned items, rewards, daily login
 js/br/world.js          island terrain, towns, buildings, props, collision, ray casting, gloo obstacles
-js/br/rig.js            smooth skeletal characters + pets with procedural animation and two-hand gun IK
+js/br/rig.js            skeletal characters + pets: foot-planted IK legs, sprint carry, prone, peek, vault, two-hand gun IK
 js/br/character.js      looks (skin, hair, outfits), parachute, gloo, plane, loot models
 js/br/input.js          touch (stick, look, buttons), mouse + pointer lock, keyboard, gamepad
 js/br/core.js           shared state, settings, renderer setup, fighters, loot helpers, messages

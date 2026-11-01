@@ -181,12 +181,12 @@
 
   X.knock = (t, a, wname, head) => {
     const G = X.G;
-    t.knocked = true; t.hp = 0; t.bleed = 100; t.knockedBy = a; t.useT = 0; t.reloadT = 0; t.crouch = false; t.emote = null; t.reviveOf = null;
+    t.knocked = true; t.hp = 0; t.bleed = 100; t.knockedBy = a; t.useT = 0; t.reloadT = 0; t.crouch = false; t.prone = false; t.vault = null; t.vaultK = 0; t.lean = 0; t.emote = null; t.reviveOf = null;
     const who = a ? (a.isPlayer ? "You" : a.name) : "The zone";
     X.feed(`${esc(who)} <b>${esc(wname || "")}</b>${head ? " 🎯" : ""} 🔻 ${esc(t.isPlayer ? "You" : t.name)} <i>(knocked)</i>`, (a && a.isPlayer) || t.isPlayer || t.team === G.player.team);
     if (a && a.isPlayer) { SND.sfx("knock"); X.killBanner(head ? "🎯" : "🔻", head ? "HEADSHOT · KNOCKED" : "KNOCKED DOWN"); }
     if (t.isPlayer) { X.center("YOU'RE KNOCKED!", "Crawl to cover · a teammate can revive you", 3); SND.sfx("lose"); }
-    else if (t.team === G.player.team) X.toast(`🩸 ${t.name} is knocked! Hold E / ➕ next to them to revive`);
+    else if (t.team === G.player.team) X.toast(`🩸 ${t.name} is knocked! Hold F / ➕ next to them to revive`);
   };
 
   X.revive = (t, by) => {
@@ -200,7 +200,7 @@
   X.kill = (t, a, wname, head) => {
     const G = X.G;
     if (!t.alive) return;
-    t.alive = false; t.dead = true; t.deadT = 0; t.hp = 0; t.useT = 0; t.reloadT = 0; t.crouch = false; t.knocked = false; t.emote = null;
+    t.alive = false; t.dead = true; t.deadT = 0; t.hp = 0; t.useT = 0; t.reloadT = 0; t.crouch = false; t.prone = false; t.vault = null; t.vaultK = 0; t.lean = 0; t.knocked = false; t.emote = null;
     t.deaths++;
     G.alive--;
     if (t.dummy) { t.respawnT = 2.5; }
@@ -458,11 +458,27 @@
   };
 
   // ------------------------------------------------------------------ physics
+  // Momentum-based movement shared by every fighter: linear acceleration and braking (no instant
+  // direction changes), slower uphill, a stride clock that drives the legs and the footsteps,
+  // heavy landings that slow you down, fall damage, and vaulting / climbing over low cover.
+  const ACC = 24, BRAKE = 34, AIR = 5;
   X.physics = (f, wx, wz, speed, dt) => {
     const W = X.WORLD;
-    const k = clamp((f.onGround ? 11 : 2.5) * dt, 0, 1);
-    f.vx += (wx * speed - f.vx) * k;
-    f.vz += (wz * speed - f.vz) * k;
+    if (f.vault) return vaultStep(f, dt);
+    let tsp = speed;
+    const il = Math.hypot(wx, wz);
+    if (f.onGround && il > 0.05 && tsp > 0) {
+      const h0 = W.heightAt(f.x, f.z);
+      if (Math.abs(f.y - h0) < 0.3) tsp *= clamp(1 - ((W.heightAt(f.x + (wx / il) * 0.7, f.z + (wz / il) * 0.7) - h0) / 0.7) * 0.6, 0.6, 1.1);
+    }
+    if (!f.isPlayer) f.sprinting = tsp > 5.6 && f.onGround;
+    const tx = wx * tsp, tz = wz * tsp, dvx = tx - f.vx, dvz = tz - f.vz, dl = Math.hypot(dvx, dvz);
+    if (dl > 1e-4) {
+      let a = AIR;
+      if (f.onGround) a = Math.hypot(tx, tz) > Math.hypot(f.vx, f.vz) + 0.05 && f.vx * tx + f.vz * tz >= 0 ? ACC : BRAKE;
+      const st = a * dt;
+      if (dl <= st) { f.vx = tx; f.vz = tz; } else { f.vx += (dvx / dl) * st; f.vz += (dvz / dl) * st; }
+    }
     f.x += f.vx * dt; f.z += f.vz * dt;
     W.collide(f, 0.38, X.fHeight(f));
     if (X.G && X.G.bounds) {
@@ -473,23 +489,128 @@
     f.y += f.vy * dt;
     const g = W.groundAt(f.x, f.z, f.y + 0.05);
     if (f.y <= g) {
-      if (!f.onGround && f.vy < -12 && f.isPlayer) SND.sfx("land", 0.6);
-      if (!f.onGround && f.vy < -6 && X.G && X.hearVol(f.x, f.z) > 0.3) dust(f, 10, 2.2);
+      if (!f.onGround) landed(f, -f.vy);
       f.y = g; f.vy = 0; f.onGround = true;
     } else if (f.y > g + 0.08) f.onGround = false;
     const sp = Math.hypot(f.vx, f.vz);
     f.moving = clamp(sp / 4.5, 0, 1);
     f.walk += sp * dt * 2.1;
     if (sp > 0.6 && f.emote) f.emote = null;
-    if (f.onGround && sp > 1.5) {
-      f.stepT -= dt * sp / 4.5;
-      if (f.stepT <= 0) {
-        f.stepT = 0.36;
-        if (f.isPlayer) SND.sfx("step", 0.5); else X.sfxAt("step", f.x, f.z, 0.9);
-        if (X.G && sp > 4 && X.hearVol(f.x, f.z) > 0.45) dust(f, 2, 0.6);
-      }
-    }
+    if (f.landRec > 0) f.landRec -= dt;
+    X.gaitStep(f, sp, dt);
   };
+  function landed(f, v) {
+    const G = X.G;
+    if (v > 12 && f.isPlayer) SND.sfx("land", clamp(v / 20, 0.4, 1));
+    if (v > 6 && G && X.hearVol(f.x, f.z) > 0.3) dust(f, Math.round(clamp(v, 6, 18)), 2.2);
+    if (v > 7.5) f.landRec = clamp((v - 7.5) / 12, 0.12, 0.55);
+    if (f.isPlayer && v > 9 && G) G.shake = Math.max(G.shake, clamp((v - 9) / 20, 0, 0.35));
+    // fall damage from roughly 5 m and higher (offline modes; online the server is the referee)
+    if (v > 13.5 && G && !G.online && !G.training && f.alive && !f.knocked) {
+      const dmg = Math.round((v - 13.5) * 7);
+      f.hp -= dmg; f.hitT = 0.25;
+      if (f.isPlayer) { SND.sfx("hurt", 0.7); X.vibrate(80); X.toast(`${BR3.IC.prone} Fall damage -${dmg}`); }
+      if (f.hp <= 0) { if (G.teamSize > 1 && X.hasStandingMate(f)) X.knock(f, null, "🪂", false); else X.kill(f, null, "🪂", false); }
+    }
+  }
+  // stride length (one full cycle = two steps) for a speed; the rig uses the same numbers so feet stay planted
+  BR3.strideOf = BR3.strideOf || ((f, sp) => (f.prone || f.knocked ? 0.9 : f.crouch ? clamp(0.7 + sp * 0.28, 0.8, 1.5) : clamp(0.85 + sp * 0.25, 1.05, 2.5)));
+  X.gaitStep = (f, sp, dt) => {
+    const prev = f.gait || 0;
+    if (sp > 0.12) {
+      const lz = f.vx * Math.sin(f.yaw) + f.vz * Math.cos(f.yaw);
+      f.gait = prev + (lz < -0.35 * sp ? -1 : 1) * 2 * Math.PI * (sp / BR3.strideOf(f, sp)) * dt;
+    }
+    // a foot touches down every half cycle
+    if (f.onGround && sp > 0.9 && !f.prone && !f.knocked && !f.vault && Math.floor(prev / Math.PI) !== Math.floor(f.gait / Math.PI)) footstep(f, sp);
+  };
+  function footstep(f, sp) {
+    const G = X.G, W = X.WORLD;
+    const hard = W.inBuilding && W.inBuilding(f.x, f.z) || f.y - W.heightAt(f.x, f.z) > 0.4;
+    const vol = (f.crouch ? 0.22 : sp > 5.6 ? 0.75 : sp > 3.5 ? 0.55 : 0.35) * (X.has(f, "sprint") ? 0.85 : 1);
+    const name = hard ? "stepHard" : "step";
+    if (f.isPlayer) SND.sfx(name, vol);
+    else X.sfxAt(name, f.x, f.z, vol * 1.5);
+    if (G && sp > 5 && !hard && X.hearVol(f.x, f.z) > 0.45) dust(f, 3, 0.7);
+  }
+
+  // ------------------------------------------------------------------ vault / climb
+  function slab(x, z, dx, dz, x0, x1, z0, z1) {
+    let t0 = -Infinity, t1 = Infinity;
+    for (const [o, d, a, b] of [[x, dx, x0, x1], [z, dz, z0, z1]]) {
+      if (Math.abs(d) < 1e-6) { if (o < a || o > b) return null; continue; }
+      let ta = (a - o) / d, tb = (b - o) / d;
+      if (ta > tb) [ta, tb] = [tb, ta];
+      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+    }
+    return t1 >= t0 && t1 > 0 ? [t0, t1] : null;
+  }
+  const QB = [];
+  function blocked(x, z, ya, yb, r = 0.3) {
+    QB.length = 0;
+    X.WORLD.query(x - r, z - r, x + r, z + r, QB);
+    return QB.some(o => o.x0 < x + r && o.x1 > x - r && o.z0 < z + r && o.z1 > z - r && o.y0 < yb && o.y1 > ya);
+  }
+  // returns a vault / climb plan for the obstacle in front of f, or null
+  X.findVault = f => {
+    if (!f.onGround || f.prone || f.knocked || f.vault || f.phase !== "ground") return null;
+    const W = X.WORLD, sp = Math.hypot(f.vx, f.vz);
+    let dx = Math.sin(f.yaw), dz = Math.cos(f.yaw);
+    if (sp > 1.2) { dx = f.vx / sp; dz = f.vz / sp; }
+    const near = [];
+    W.query(f.x - 2.6, f.z - 2.6, f.x + 2.6, f.z + 2.6, near);
+    let best = null, bt = 1.3;
+    for (const o of near) {
+      const h = o.y1 - f.y;
+      if (h < 0.55 || h > 2.05 || o.y0 > f.y + 0.4 || o.kind === "gloo" || o.kind === "roof") continue;
+      const hit = slab(f.x, f.z, dx, dz, o.x0 - 0.38, o.x1 + 0.38, o.z0 - 0.38, o.z1 + 0.38);
+      if (!hit || hit[0] > bt) continue;
+      best = o; bt = hit[0];
+    }
+    if (!best) return null;
+    const raw = slab(f.x, f.z, dx, dz, best.x0, best.x1, best.z0, best.z1);
+    if (!raw) return null;
+    const tin = Math.max(raw[0], 0), depth = raw[1] - tin, top = best.y1, h = top - f.y;
+    const over = depth <= 1.45 && h <= 1.4;
+    let ex, ez, ey;
+    if (over) {
+      ex = f.x + dx * (raw[1] + 0.6); ez = f.z + dz * (raw[1] + 0.6);
+      ey = W.groundAt(ex, ez, top + 0.2);
+    } else {
+      ex = f.x + dx * (tin + 0.5); ez = f.z + dz * (tin + 0.5); ey = top;
+      if (Math.abs(W.groundAt(ex, ez, top + 0.2) - top) > 0.06) return null;
+    }
+    if (blocked(ex, ez, ey + 0.15, ey + 1.75)) return null;
+    const mx = f.x + dx * (tin + Math.min(depth, 0.5) * 0.5), mz = f.z + dz * (tin + Math.min(depth, 0.5) * 0.5);
+    if (blocked(mx, mz, top + 0.12, top + 1.25, 0.2)) return null;
+    const probe = { x: ex, y: ey, z: ez };
+    W.collide(probe, 0.36, 1.7);
+    if (Math.hypot(probe.x - ex, probe.z - ez) > 0.08) return null;
+    return { sx: f.x, sy: f.y, sz: f.z, ex, ey, ez, top, h, over, dx, dz, exitSp: Math.max(sp, 3.2) };
+  };
+  X.startVault = (f, v) => {
+    const u = clamp((v.h - 0.55) / 1.5, 0, 1);
+    v.t = 0; v.dur = v.over ? lerp(0.42, 0.62, u) : lerp(0.5, 0.85, u);
+    f.vault = v; f.vaultK = 0.001; f.crouch = false; f.prone = false; f.emote = null;
+    if (f.isPlayer) SND.sfx("vault", 0.8); else X.sfxAt("vault", f.x, f.z, 0.9);
+  };
+  function vaultStep(f, dt) {
+    const v = f.vault, W = X.WORLD;
+    v.t += dt;
+    const k = clamp(v.t / v.dur, 0, 1), e = k * k * (3 - 2 * k);
+    const nx = lerp(v.sx, v.ex, e), nz = lerp(v.sz, v.ez, e);
+    const peak = v.top + (v.over ? 0.16 : 0.04);
+    const ny = k < 0.45 ? lerp(v.sy, peak, Math.sin((k / 0.45) * Math.PI / 2)) : lerp(peak, v.ey, Math.pow((k - 0.45) / 0.55, 2));
+    if (dt > 0) { f.vx = (nx - f.x) / dt; f.vz = (nz - f.z) / dt; }
+    f.x = nx; f.z = nz; f.y = ny; f.vy = 0; f.onGround = false;
+    f.vaultK = Math.max(0.001, k);
+    if (k >= 1) {
+      f.vault = null; f.vaultK = 0;
+      f.y = W.groundAt(f.x, f.z, f.y + 0.1); f.onGround = true;
+      f.vx = v.dx * v.exitSp * 0.85; f.vz = v.dz * v.exitSp * 0.85;
+      if (f.isPlayer) SND.sfx("stepHard", 0.6);
+    }
+  }
   // floating dust puffs at the feet (g < 0 = drifts upward slowly)
   function dust(f, n, spd) {
     const P = X.G.parts;

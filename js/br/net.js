@@ -106,7 +106,7 @@
     const G = X.G, P = G.player, T = G.arena;
     const s = X.openSpot(T.x, T.z, 70, 2.5);
     P.x = s.x; P.z = s.z; P.y = X.WORLD.groundAt(s.x, s.z, 99) + 0.1;
-    P.vx = P.vy = P.vz = 0; P.hp = 100; P.alive = true; P.dead = false; P.deadT = 0; P.knocked = false; P.boost = 0; P.useT = 0; P.reloadT = 0; P.skillCd = 0; P.streak = 0;
+    P.vx = P.vy = P.vz = 0; P.crouch = P.prone = false; P.vault = null; P.vaultK = 0; P.lean = 0; BR3.Input.leanT = 0; P.hp = 100; P.alive = true; P.dead = false; P.deadT = 0; P.knocked = false; P.boost = 0; P.useT = 0; P.reloadT = 0; P.skillCd = 0; P.streak = 0;
     for (const k in P.buffs) P.buffs[k] = 0;
     P.yaw = Math.atan2(T.x - P.x, T.z - P.z); G.cam.yaw = P.yaw; G.cam.pitch = -0.05;
     loadout(P);
@@ -121,7 +121,7 @@
     G.sendT -= dt;
     if (G.sendT <= 0) {
       G.sendT = 0.05;
-      send({ t: "st", x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), yaw: +P.yaw.toFixed(3), pitch: +(P.pitch || 0).toFixed(3), vx: +P.vx.toFixed(2), vz: +P.vz.toFixed(2), fl: (P.onGround ? 1 : 0) | (P.crouch ? 2 : 0) | (P.reloadT > 0 ? 4 : 0), w: P.alive && P.weapon ? P.weapon : "" });
+      send({ t: "st", x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), yaw: +P.yaw.toFixed(3), pitch: +(P.pitch || 0).toFixed(3), vx: +P.vx.toFixed(2), vz: +P.vz.toFixed(2), fl: (P.onGround ? 1 : 0) | (P.crouch ? 2 : 0) | (P.reloadT > 0 ? 4 : 0) | (P.prone ? 8 : 0) | (P.sprinting ? 16 : 0) | (P.leanT < 0 ? 32 : 0) | (P.leanT > 0 ? 64 : 0) | (P.vault ? 128 : 0), w: P.alive && P.weapon ? P.weapon : "" });
     }
     G.pingT -= dt;
     if (G.pingT <= 0) { G.pingT = 2; send({ t: "ping", c: performance.now() }); }
@@ -140,9 +140,13 @@
     f.x = lerp(s0.x, s1.x, k); f.y = lerp(s0.y, s1.y, k); f.z = lerp(s0.z, s1.z, k);
     f.yaw = s0.yaw + wrapA(s1.yaw - s0.yaw) * k; f.pitch = lerp(s0.pitch, s1.pitch, k);
     f.vx = s1.vx; f.vz = s1.vz; f.onGround = !!(s1.fl & 1); f.crouch = !!(s1.fl & 2); f.reloadT = s1.fl & 4 ? 1 : 0;
+    f.prone = !!(s1.fl & 8); f.sprinting = !!(s1.fl & 16);
+    f.lean += ((s1.fl & 32 ? -1 : s1.fl & 64 ? 1 : 0) - f.lean) * clamp(9 * dt, 0, 1);
+    if (s1.fl & 128) { f.netVaultT = (f.netVaultT || 0) + dt; f.vaultK = clamp(f.netVaultT / 0.55, 0.001, 1); } else { f.netVaultT = 0; f.vaultK = 0; }
     f.weapon = f.alive && s1.w && WD[s1.w] ? s1.w : null;
     f.gunColor = f.weapon ? (f.skinColor || BR3.hex(WD[f.weapon].color)) : null;
     f.moving = clamp(Math.hypot(f.vx, f.vz) / 4.5, 0, 1);
+    X.gaitStep(f, Math.hypot(f.vx, f.vz), dt); // stride clock + footsteps you can hear
   };
   // outgoing gameplay events (called from combat.js)
   N.hit = (t, dmg, head, w) => send({ t: "hit", id: t.netId, dmg: Math.round(dmg), head: !!head, w });

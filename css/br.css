@@ -226,7 +226,7 @@ body.cs #topbar { display: none; }
 
 /* ---------- kill banner (HEADSHOT / DOUBLE KILL ...) ---------- */
 #killBanner { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); text-align: center; animation: kb 0.35s ease-out; pointer-events: none; }
-#killBanner .ico { font-size: 44px; filter: drop-shadow(0 0 10px #f97316); }
+#killBanner .kb-ico { font-size: 44px; line-height: 1; }
 #killBanner .txt { display: inline-block; margin-top: 2px; background: linear-gradient(90deg, transparent, rgba(0,0,0,0.75), transparent); padding: 3px 26px; font-weight: 900; font-size: 18px; letter-spacing: 2px; color: #fff; text-shadow: 0 0 8px #f97316; }
 @keyframes kb { from { transform: translateX(-50%) scale(1.8); opacity: 0; } }
 
@@ -412,3 +412,27 @@ body:not(.in-touch) .tb.revive { display: none !important; }
 @media (max-width: 720px) { .mcard.wide3 { grid-column: span 2; } }
 #emoteWheel .qc { width: auto; padding: 0 10px; font-size: 13px; white-space: nowrap; }
 #emoteWheel { flex-wrap: wrap; max-width: min(92vw, 520px); }
+
+/* ---------------- custom icon set (js/br/icons.js) */
+.ico { width: 1.15em; height: 1.15em; vertical-align: -0.22em; fill: currentColor; flex: none; overflow: visible; }
+#hud .ico, .lobby .ico, .modal .ico { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55)); }
+.tb .ico { width: 0.95em; height: 0.95em; }
+.tb.fire .ico { width: 1.05em; height: 1.05em; }
+.pill > span .ico { width: 20px; height: 20px; }
+.mcard .ic .ico { width: 1em; height: 1em; }
+#killBanner .kb-ico .ico { width: 1em; height: 1em; filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.8)); }
+.side .ico { width: 22px; height: 22px; }
+.hb { display: inline-flex; align-items: center; justify-content: center; }
+.hb .ico { width: 21px; height: 21px; }
+.tb.jump .ico.v { display: none; }
+.tb.jump.vault .ico.j { display: none; }
+.tb.jump.vault .ico.v { display: inline; }
+.tb.jump.vault { background: rgba(217, 119, 6, 0.55); border-color: #fcd34d; box-shadow: 0 0 14px rgba(251, 191, 36, 0.6); }
+/* BGMI-style stance + peek buttons */
+.tb.prone { width: 46px; height: 46px; right: calc(140px + var(--sr)); bottom: calc(28px + var(--sb)); }
+.tb.prone.on { background: rgba(250, 204, 21, 0.5); }
+.tb.lean { width: 46px; height: 46px; top: calc(70px + var(--st, 0px)); font-size: 20px; }
+.tb.leanL { left: calc(186px + var(--sl)); }
+.tb.leanR { left: calc(240px + var(--sl)); }
+.tb.lean.on { background: rgba(250, 204, 21, 0.5); }
+@media (max-height: 460px) { .tb.prone { bottom: calc(12px + var(--sb)); right: calc(132px + var(--sr)); width: 42px; height: 42px; } .tb.lean { top: 64px; width: 42px; height: 42px; } }

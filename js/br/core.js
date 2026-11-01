@@ -85,7 +85,8 @@
       team: opts.team || 0, outfit, wskin, pet: opts.pet || (isPlayer ? P.pet : "none"),
       skill: opts.skill || (isPlayer ? P.skill : X.pick(SKILL_KEYS)),
       passives: opts.passives || (isPlayer ? P.passives.slice() : [X.pick(PASS_KEYS), X.pick(PASS_KEYS)]),
-      x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false, crouch: false, moving: 0, walk: 0, stepT: 0,
+      x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false, crouch: false, prone: false, moving: 0, walk: 0, stepT: 0,
+      gait: Math.random() * 6, sprinting: false, lean: 0, vault: null, vaultK: 0, landRec: 0, stanceT: 0,
       hp: 100, boost: 0, vest: 0, helmet: 0, alive: true, dead: false, deadT: 0, hitT: 0,
       knocked: false, bleed: 0, knockedBy: null, reviveT: 0, reviveOf: null,
       slots: [null, null], cur: -1, ammo: { light: 0, heavy: 0, shells: 0, sniper: 0 }, items: { bandage: 0, medkit: 0, drink: 0, grenade: 0, gloo: 0 },
@@ -106,8 +107,8 @@
   };
   X.has = (f, passive) => f.passives && f.passives.includes(passive);
   X.weaponOf = f => (f.cur >= 0 && f.slots[f.cur] ? f.slots[f.cur] : null);
-  X.fHeight = f => (f.knocked ? 0.75 : f.crouch ? 1.3 : 1.85);
-  X.eyeY = f => f.y + (f.knocked ? 0.5 : f.crouch ? 1.15 : 1.55);
+  X.fHeight = f => (f.knocked ? 0.75 : f.prone ? 0.55 : f.crouch ? 1.3 : 1.85);
+  X.eyeY = f => f.y + (f.knocked ? 0.5 : f.prone ? 0.38 : f.crouch ? 1.15 : 1.55);
   X.enemies = (a, b) => a.team !== b.team;
   X.standing = f => f.alive && !f.knocked;
   X.syncDraw = f => {
@@ -202,7 +203,7 @@
   };
   X.killBanner = (icon, text) => {
     const el = X.$("killBanner");
-    el.innerHTML = `<div class="ico">${icon}</div><div class="txt">${X.esc(text)}</div>`;
+    el.innerHTML = `<div class="kb-ico">${icon}</div><div class="txt">${X.esc(text)}</div>`;
     el.classList.remove("hidden");
     el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
     clearTimeout(bannerTimer);

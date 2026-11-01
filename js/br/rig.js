@@ -9,6 +9,10 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
   const app = (cur, tgt, rate, dt) => cur + (tgt - cur) * Math.min(1, rate * dt);
+  // stride length (metres per full two-step cycle) for a speed; physics uses the same table so the
+  // stride clock, the footstep sounds and the planted feet all line up
+  BR3.strideOf = (f, sp) => (f.prone || f.knocked ? 0.9 : f.crouch ? clamp(0.7 + sp * 0.28, 0.8, 1.5) : clamp(0.85 + sp * 0.25, 1.05, 2.5));
+  const smooth = t => t * t * (3 - 2 * t);
 
   // ---------------- profiles for Geo.lathe
   function capsule(r0, r1, len, capN = 4) {
@@ -144,25 +148,36 @@
     function anim(c) {
       const now = performance.now() / 1000;
       let a = c._anim;
-      if (!a) a = c._anim = { last: now, t: Math.random() * 20, ph: Math.random() * 6, hipYaw: 0, walk: 0, run: 0, crouch: 0, airB: 0, air: 0, land: 0, grounded: true, kick: 0, prevCd: 0, shotT: 9, port: 0, rel: 0, relPh: 0, turn: 0, prevYaw: c.yaw, blink: 2 + Math.random() * 3, blinkT: 0, dt: 0 };
+      if (!a) a = c._anim = { last: now, t: Math.random() * 20, ph: Math.random() * 6, gp: 0, sp: 0, hipYaw: 0, walk: 0, run: 0, crouch: 0, prone: 0, lean: 0, sprint: 0, accF: 0, prevLz: 0, mdx: Math.sin(c.yaw), mdz: Math.cos(c.yaw), airB: 0, air: 0, land: 0, grounded: true, kick: 0, prevCd: 0, shotT: 9, port: 0, rel: 0, relPh: 0, turn: 0, prevYaw: c.yaw, blink: 2 + Math.random() * 3, blinkT: 0, dt: 0 };
       const dt = clamp(now - a.last, 0, 0.1);
       a.last = now; a.t += dt; a.dt = dt;
-      const vx = c.vx || 0, vz = c.vz || 0, sp = Math.hypot(vx, vz) * (c.knocked ? 2.6 : 1);
+      const vx = c.vx || 0, vz = c.vz || 0, sp = Math.hypot(vx, vz);
       const cy = Math.cos(c.yaw), sy = Math.sin(c.yaw), lx = vx * cy - vz * sy, lz = vx * sy + vz * cy;
-      const grounded = c.phase === "ground" && c.onGround !== false;
+      const grounded = c.phase === "ground" && (c.onGround !== false || c.vaultK > 0);
+      a.sp = sp;
       a.walk = app(a.walk, clamp(sp / 1.6, 0, 1), 9, dt);
-      a.run = app(a.run, clamp((sp - 3.6) / 2.4, 0, 1), 6, dt);
+      a.run = app(a.run, clamp((sp - 3.2) / 3.0, 0, 1), 6, dt);
+      a.sprint = app(a.sprint, c.sprinting ? 1 : 0, 7, dt);
       let dir = 1, hy = 0;
-      if (sp > 0.4 && !c.knocked) {
+      if (sp > 0.4 && !c.knocked && !c.prone) {
         const ang = Math.atan2(lx, lz);
         if (Math.abs(ang) < 1.95) hy = clamp(ang, -0.8, 0.8); else { dir = -1; hy = clamp(wrapA(ang - Math.PI), -0.8, 0.8); }
       }
       a.hipYaw = app(a.hipYaw, hy, 8, dt);
-      const stride = lerp(1.25, 2.3, a.run);
-      if (sp > 0.12) a.ph += dir * 2 * Math.PI * (sp / stride) * dt;
-      a.crouch = app(a.crouch, c.crouch && !c.knocked ? 1 : 0, 10, dt);
+      if (sp > 0.3) {
+        const k = Math.min(1, 10 * dt);
+        a.mdx += (vx / sp - a.mdx) * k; a.mdz += (vz / sp - a.mdz) * k;
+        const l = Math.hypot(a.mdx, a.mdz) || 1; a.mdx /= l; a.mdz /= l;
+      }
+      if (sp > 0.12) a.ph += dir * 2 * Math.PI * (sp / BR3.strideOf(c, sp)) * dt;
+      a.gp = typeof c.gait === "number" ? c.gait : a.ph; // the physics stride clock when there is one
+      a.crouch = app(a.crouch, c.crouch && !c.knocked && !c.prone ? 1 : 0, 10, dt);
+      a.prone = app(a.prone, c.prone && !c.knocked && !c.dead ? 1 : 0, 4.5, dt);
+      a.lean = app(a.lean, c.dead || c.knocked ? 0 : c.lean || 0, 12, dt);
+      a.accF = app(a.accF, clamp((lz - a.prevLz) / Math.max(dt, 1e-3), -25, 25), 5, dt);
+      a.prevLz = lz;
       if (c.phase === "ground" && !grounded) a.air += dt;
-      if (grounded && !a.grounded && a.air > 0.3) a.land = 1;
+      if (grounded && !a.grounded && a.air > 0.3) a.land = Math.min(1, 0.45 + a.air * 0.6);
       if (grounded) a.air = 0;
       a.airB = app(a.airB, c.phase === "ground" && !grounded && a.air > 0.12 ? 1 : 0, 10, dt);
       a.land = Math.max(0, a.land - dt * 3.2);
@@ -174,7 +189,7 @@
       if (c.reloadT > 0) a.relPh += dt * 4;
       const yr = wrapA(c.yaw - a.prevYaw) / Math.max(dt, 1e-3);
       a.prevYaw = c.yaw;
-      a.turn = app(a.turn, clamp(-yr * 0.04, -0.2, 0.2) * a.run, 6, dt);
+      a.turn = app(a.turn, clamp(-yr * 0.045, -0.22, 0.22) * Math.max(a.run, a.sprint), 6, dt);
       a.blink -= dt;
       if (a.blink < 0) { a.blinkT = 0.12; a.blink = 2 + Math.random() * 4; }
       a.blinkT = Math.max(0, a.blinkT - dt);
@@ -183,21 +198,33 @@
 
     const SH4 = [0, 0, 0, 0.36], SM = M4.create();
 
+    const TAU = Math.PI * 2;
+    const lerp3 = (A, B, k) => [lerp(A[0], B[0], k), lerp(A[1], B[1], k), lerp(A[2], B[2], k)];
+    const FT = [{ side: -1, H: null, F: [0, 0, 0], fp: 0 }, { side: 1, H: null, F: [0, 0, 0], fp: 0 }];
+
     function draw(c, dist) {
       pi = 0;
       const a = anim(c), dt = a.dt;
       const L = c.look, s = L.big ? 1.08 : 1, far = dist > 40, vfar = dist > 100;
       tm = c.dead ? 0.62 : 1;
       hitE = c.hitT > 0 && !c.dead ? [Math.min(1, c.hitT * 4) * 0.55, 0.02, 0.02] : null;
-      const now = a.t, Wk = a.walk, Rn = a.run, ph = a.ph;
+      const now = a.t, Wk = a.walk, Rn = Math.max(a.run, a.sprint), ph = a.gp, SPR = a.sprint;
+      const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), cyw = Math.cos(c.yaw), syw = Math.sin(c.yaw);
+      const FWD = [fx, 0, fz];
+      const rotY = v => [v[0] * cyw + v[2] * syw, v[1], -v[0] * syw + v[2] * cyw];
+      const W = BR3.X && BR3.X.WORLD;
 
       // -------------------------------------------------------------- pose
-      let lift = 0, pivot = 0, lean = 0, roll = 0;
+      let lift = 0, pivot = 0, lean = 0, roll = 0, sway = 0;
       let pelY = 0.93, pelP = 0, pelR = 0, hipYaw = a.hipYaw, spLean = 0, twist = 0, chP = 0, aimTw = 0, hdP = 0, hdY = 0;
       const LG = [{ sw: 0, ab: 0.05, kn: 0.06, an: null }, { sw: 0, ab: 0.05, kn: 0.06, an: null }];
       const AR = [{ sw: 0.05, ab: 0.12, el: 0.2 }, { sw: 0.05, ab: 0.12, el: 0.2 }];
       const em = c.emote && !c.dead && !c.knocked ? c.emote : null;
+      const dance = em && !(em.type === "wave" || em.type === "salute" || em.type === "victory");
+      const vk = c.vaultK > 0 && !c.dead && !c.knocked && c.phase === "ground" ? c.vaultK : 0;
+      const pr = c.dead || c.knocked ? 0 : a.prone, pk = smooth(pr);
       const wpn = c.weapon && !c.dead && !c.knocked && !em && c.phase === "ground" ? c.weapon : null;
+      let ikLegs = false;
 
       if (c.dead) {
         const k = Math.min(1, (c.deadT || 0) * 2.4);
@@ -220,32 +247,47 @@
         AR.forEach(A => { A.sw = 2.75; A.ab = 0.42; A.el = 0.45; });
         LG.forEach((G, i) => { G.sw = Math.sin(now * 1.7 + i * 2) * 0.16 + 0.12; G.kn = 0.32 + Math.sin(now * 1.7 + i) * 0.1; G.ab = 0.06; });
         hdP = 0.25;
+      } else if (vk) {
+        // vault: tuck the knees, lean over the obstacle and twist sideways (speed vault)
+        const s1 = Math.sin(Math.PI * vk);
+        LG[0].sw = 0.15 + 1.35 * s1; LG[0].kn = 0.1 + 1.95 * s1;
+        LG[1].sw = -0.25 * (1 - s1) + 0.8 * s1; LG[1].kn = 0.2 + 1.35 * s1;
+        LG.forEach(G => { G.ab = 0.08 + 0.22 * s1; });
+        spLean = 0.6 * s1; pelY = 0.93 - 0.2 * s1; roll = 0.1 * s1; hipYaw = 0.45 * s1;
+        AR[1].sw = 1.0 + 0.4 * s1; AR[1].ab = 0.25; AR[1].el = 0.25;
+        AR[0].sw = 0.5; AR[0].ab = 0.1 + 0.55 * s1; AR[0].el = 0.9;
+        hdP = 0.15 * s1;
+      } else if (pr > 0.02) {
+        // prone: drop to the ground smoothly, then crawl (hips wiggle, knees and elbows alternate)
+        lean = 1.5 * pk; pivot = 0.93; lift = lerp(0.93, 0.2, pk); hipYaw = 0;
+        pelR = Math.sin(ph) * 0.09 * Wk * pk;
+        chP = -0.3 * pk;
+        twist = Math.sin(ph) * 0.12 * Wk * pk;
+        LG.forEach((G, i) => { const q = ph + (i ? 0 : Math.PI); G.sw = lerp(0.05, -0.08, pk); G.ab = 0.08 + 0.1 * pk; G.kn = lerp(0.06, 0.12 + Math.max(0, Math.sin(q)) * 0.9 * Wk, pk); G.an = lerp(0.05, 0.25, pk); });
+        AR.forEach((A, i) => { const q = ph + (i ? Math.PI : 0); A.sw = lerp(0.1, 2.3 + Math.sin(q) * 0.45 * Wk, pk); A.ab = lerp(0.12, 0.45, pk); A.el = lerp(0.2, 0.9 + Math.max(0, Math.cos(q)) * 0.7 * Wk, pk); });
       } else {
-        // ---- locomotion
-        for (let i = 0; i < 2; i++) {
-          const p = ph + (i ? Math.PI : 0), amp = lerp(0.3, 0.8, Rn) * Wk * (1 - a.crouch * 0.45);
-          LG[i].sw = Math.sin(p) * amp + 0.1 * Rn * Wk;
-          LG[i].kn = 0.05 + Wk * lerp(0.35, 1.3, Rn) * Math.pow(Math.max(0, Math.cos(p)), 1.4) + 0.1 * Wk;
-          AR[i].sw = -Math.sin(p) * lerp(0.3, 1.0, Rn) * Wk + 0.12 * Rn;
-          AR[i].el = 0.2 + lerp(0.15, 1.35, Rn) * Wk;
-          AR[i].ab = 0.1;
-        }
-        const bob = (0.012 + 0.045 * Rn) * Wk * Math.cos(2 * ph);
-        pelY = 0.93 - 0.03 * Rn * Wk + bob;
-        pelR = Math.sin(ph) * 0.045 * Wk + Math.sin(now * 0.6) * 0.02 * (1 - Wk);
-        spLean = lerp(0.03, 0.24, Rn) * Wk;
-        twist = -Math.sin(ph) * 0.16 * Wk;
+        // ---- locomotion: the pelvis rides over feet that stay planted on the ground (IK legs below)
+        ikLegs = !dance;
+        const cr = a.crouch, d = clamp(0.64 - a.sp * 0.06, 0.3, 0.64);
+        const amp = lerp(0.02, 0.05, Rn) * Wk * (1 - cr * 0.5);
+        pelY = 0.93 - 0.05 * Rn * Wk - amp * Math.cos(2 * (ph - lerp(0, Math.PI * d, Rn))) - 0.008 * (1 - Wk) * (1 + Math.sin(now * 1.7));
+        sway = Math.sin(ph) * 0.026 * Wk * (1 - Rn * 0.6);
+        pelR = Math.sin(ph) * 0.05 * Wk + Math.sin(now * 0.6) * 0.015 * (1 - Wk);
+        hipYaw += Math.cos(ph) * 0.1 * Wk;
+        spLean = lerp(0.04, 0.2, Rn) * Wk + SPR * 0.1 + clamp(a.accF * 0.016, -0.14, 0.16);
+        twist = -Math.cos(ph) * lerp(0.12, 0.24, Rn) * Wk;
         chP = Math.sin(now * 1.7) * 0.018 * (1 - Wk);
         roll = a.turn;
-        const cr = a.crouch;
-        if (cr > 0.01) { pelY -= 0.3 * cr; LG.forEach(G => { G.sw += 0.95 * cr; G.kn += 1.7 * cr; }); spLean += 0.3 * cr; }
-        const ai = a.airB;
-        if (ai > 0.01) {
-          LG[0].sw = lerp(LG[0].sw, 0.75, ai); LG[0].kn = lerp(LG[0].kn, 1.15, ai);
-          LG[1].sw = lerp(LG[1].sw, -0.05, ai); LG[1].kn = lerp(LG[1].kn, 0.6, ai);
-          AR.forEach(A => { A.ab = lerp(A.ab, 0.55, ai); A.sw = lerp(A.sw, 0.35, ai); });
+        // free arms swing against the legs; bigger and more bent when running
+        for (let i = 0; i < 2; i++) {
+          const p = ph + (i ? Math.PI : 0);
+          AR[i].sw = -Math.cos(p) * lerp(0.3, 1.05, Rn) * Wk + 0.12 * Rn;
+          AR[i].el = 0.2 + lerp(0.15, 1.4, Rn) * Wk;
+          AR[i].ab = 0.1;
         }
-        if (a.land > 0) { const k = a.land; pelY -= 0.14 * k; LG.forEach(G => { G.sw += 0.4 * k; G.kn += 0.8 * k; }); spLean += 0.18 * k; }
+        if (cr > 0.01) { pelY -= 0.32 * cr; spLean += 0.3 * cr; }
+        if (a.land > 0) { pelY -= 0.16 * a.land; spLean += 0.2 * a.land; }
+        if (a.airB > 0.01) AR.forEach(A => { A.ab = lerp(A.ab, 0.55, a.airB); A.sw = lerp(A.sw, 0.35, a.airB); });
       }
       if (em) {
         const t = em.t || 0;
@@ -263,23 +305,61 @@
       const own = BR3.X && BR3.X.G && BR3.X.G.player === c;
       const ads = own && BR3.X.G.ads;
       if (wpn) {
-        const port = Rn > 0.55 && a.shotT > 0.6 && !ads;
-        a.port = app(a.port, port ? 1 : 0, 8, dt);
-        aimTw = 0.3 * (1 - a.port); hdY = -0.3 * (1 - a.port);
+        // sprinting (or vaulting) carries the rifle low in one hand; otherwise the bladed aiming stance
+        const port = (vk > 0 || c.sprinting) && a.shotT > 0.35 && !ads && pr < 0.5;
+        a.port = app(a.port, port ? 1 : 0, 9, dt);
+        const aimK = (1 - a.port) * (1 - pk);
+        aimTw = 0.3 * aimK; hdY = -0.3 * aimK;
         twist *= lerp(0.25, 1, a.port);
-        chP += -clamp(c.pitch || 0, -0.9, 0.9) * 0.2 * (1 - a.port);
+        chP += -clamp(c.pitch || 0, -0.9, 0.9) * 0.2 * aimK;
       }
-      if (!c.dead && !c.knocked && !(c.phase === "fall" && !c.para)) hdP += -clamp(c.pitch || 0, -0.8, 0.8) * 0.55 - spLean * 0.7;
+      if (!c.dead && !c.knocked && !(c.phase === "fall" && !c.para)) hdP += -clamp(c.pitch || 0, -0.8, 0.8) * 0.55 - spLean * 0.7 - 1.2 * pk;
 
       // -------------------------------------------------------------- skeleton
       const root = mat();
       M4.trs(root, c.x, c.y + lift, c.z, c.yaw, lean, roll, s, s, s);
       const rt = pivot ? bone(root, 0, -pivot, 0) : root;
-      const pel = bone(rt, 0, pelY, 0, pelP, hipYaw, pelR);
-      const spn = bone(pel, 0, 0.06, 0, spLean, -hipYaw * 0.85 + twist * 0.5, -pelR * 0.7);
-      const ch = bone(spn, 0, 0.24, 0, chP, twist * 0.5 + aimTw, 0);
-      const nk = bone(ch, 0, 0.215, 0, hdP * 0.35, hdY * 0.35, 0);
-      const hd = bone(nk, 0, 0.13, 0, hdP * 0.65, hdY * 0.65, 0);
+      const ln = a.lean; // peek: the upper body tilts sideways
+      let pel, spn, ch, nk, hd;
+      const build = () => {
+        pel = bone(rt, sway, pelY, 0, pelP, hipYaw, pelR);
+        spn = bone(pel, 0, 0.06, 0, spLean, -hipYaw * 0.85 + twist * 0.5, -pelR * 0.7 + ln * 0.24);
+        ch = bone(spn, 0, 0.24, 0, chP, twist * 0.5 + aimTw, ln * 0.18);
+        nk = bone(ch, 0, 0.215, 0, hdP * 0.35, hdY * 0.35, -ln * 0.1);
+        hd = bone(nk, 0, 0.13, 0, hdP * 0.65, hdY * 0.65, -ln * 0.14);
+      };
+      build();
+      if (ikLegs) {
+        // foot targets: stance foot slides back exactly as fast as the body moves (planted), swing foot arcs forward
+        const near = W && dist < 30, stride = BR3.strideOf(c, a.sp), d = clamp(0.64 - a.sp * 0.06, 0.3, 0.64), Ls = Math.min(d * stride, 0.72 * s) * Wk;
+        const wide = lerp(0.12, 0.085, Rn) + a.crouch * 0.04;
+        for (let i = 0; i < 2; i++) {
+          const t = FT[i], side = t.side, u = ((((ph + (i ? Math.PI : 0)) % TAU) + TAU) % TAU) / TAU;
+          let off, up = 0, fp = 0;
+          if (u < d) { const q = u / d; off = Ls / 2 - q * Ls; fp = q > 0.7 ? ((q - 0.7) / 0.3) * 0.5 * Wk : 0; }
+          else { const q = (u - d) / (1 - d); off = -Ls / 2 + Ls * smooth(q); up = Math.sin(Math.PI * Math.pow(q, lerp(1, 0.65, Rn))) * lerp(0.1, 0.34, Rn) * Wk * (1 - a.crouch * 0.4); fp = lerp(0.55, -0.35, q) * Wk * lerp(0.5, 1, Rn); }
+          const stag = (i ? -0.06 : 0.08) * (1 - Wk);
+          let Fx = c.x + side * wide * cyw * s + a.mdx * off + fx * stag;
+          let Fz = c.z - side * wide * syw * s + a.mdz * off + fz * stag;
+          let gy = c.y;
+          if (near) gy = clamp(W.groundAt(Fx, Fz, c.y + 0.45), c.y - 0.45, c.y + 0.45);
+          let Fy = gy + 0.085 * s + up;
+          if (a.airB > 0.01) {
+            const k = a.airB, ax = c.x + side * 0.11 * cyw + fx * (i ? -0.18 : 0.2), az = c.z - side * 0.11 * syw + fz * (i ? -0.18 : 0.2);
+            Fx = lerp(Fx, ax, k); Fz = lerp(Fz, az, k); Fy = lerp(Fy, c.y + (i ? 0.22 : 0.36), k); fp = lerp(fp, 0.3, k);
+          }
+          t.F[0] = Fx; t.F[1] = Fy; t.F[2] = Fz; t.fp = fp;
+        }
+        // if a foot is out of reach (down a slope, deep stride) the hips sink instead of the leg over-stretching
+        const reach = 0.85 * s * 0.985;
+        let drop = 0;
+        for (const t of FT) {
+          const H = xf(pel, t.side * 0.105, -0.04, 0), dx = t.F[0] - H[0], dy = t.F[1] - H[1], dz = t.F[2] - H[2];
+          if (Math.hypot(dx, dy, dz) > reach) drop = Math.max(drop, -dy - Math.sqrt(Math.max(0, reach * reach - dx * dx - dz * dz)));
+        }
+        if (drop > 0.002) { pelY -= Math.min(drop / s, 0.35); build(); }
+        for (const t of FT) t.H = xf(pel, t.side * 0.105, -0.04, 0);
+      }
       for (let i = 0; i < 11; i++) if (i % 4 !== 3) hd[i] *= 1.12; // stylized, slightly bigger head
 
       // -------------------------------------------------------------- colors
@@ -292,14 +372,23 @@
       const handCol = L.gloves ? DARK : L.skin;
 
       R.material(0.28, 0.38);
-      // legs
-      for (let i = 0; i < 2; i++) {
-        const side = i ? 1 : -1, G = LG[i];
-        const th = bone(pel, side * 0.105, -0.04, 0, -G.sw, 0, side * G.ab);
-        D(M.thigh, th, L.pants);
-        const sh = bone(th, 0, -0.43, 0, G.kn);
-        D(M.shin, sh, L.pants);
-        if (!vfar) D(M.shoe, bone(sh, 0, -0.42, 0, G.an == null ? G.sw - G.kn : G.an), SHOE);
+      // legs: two-bone IK onto planted feet, or the FK pose for lying / falling / vaulting / dancing
+      if (ikLegs) {
+        for (const t of FT) {
+          const [K, A] = ik(t.H, t.F, 0.43 * s, 0.42 * s, [fx + t.side * cyw * 0.12, 0.05, fz - t.side * syw * 0.12]);
+          D(M.thigh, seg(t.H, K, FWD, s), L.pants);
+          D(M.shin, seg(K, A, FWD, s), L.pants);
+          if (!vfar) { const m = mat(); M4.trs(m, A[0], A[1], A[2], c.yaw + t.side * 0.06, t.fp, 0, s, s, s); D(M.shoe, m, SHOE); }
+        }
+      } else {
+        for (let i = 0; i < 2; i++) {
+          const side = i ? 1 : -1, G = LG[i];
+          const th = bone(pel, side * 0.105, -0.04, 0, -G.sw, 0, side * G.ab);
+          D(M.thigh, th, L.pants);
+          const sh = bone(th, 0, -0.43, 0, G.kn);
+          D(M.shin, sh, L.pants);
+          if (!vfar) D(M.shoe, bone(sh, 0, -0.42, 0, G.an == null ? G.sw - G.kn : G.an), SHOE);
+        }
       }
       D(M.pelvis, pel, L.pants);
       D(M.belly, spn, shirtCol, shirtOpt);
@@ -332,23 +421,30 @@
         else if (L.hat === "visor") D(M.visor, hd, CYAN, { emit: [0.1, 0.7, 0.8] });
       }
       // arms (+ weapon)
-      const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), cyw = Math.cos(c.yaw), syw = Math.sin(c.yaw);
-      const FWD = [fx, 0, fz];
-      const rotY = v => [v[0] * cyw + v[2] * syw, v[1], -v[0] * syw + v[2] * cyw];
       if (wpn) {
         const GI = GUNS[wpn] || rifle;
         const pitch = clamp(c.pitch || 0, -1, 1), k = a.kick, port = a.port, rel = a.rel;
-        const anc = xf(ch, lerp(-0.09, -0.02, port), lerp(0.08, -0.02, port), lerp(0.24, 0.26, port));
+        let anc = xf(ch, lerp(-0.09, -0.02, port), lerp(0.08, -0.02, port), lerp(0.24, 0.26, port));
+        if (pk > 0.01) anc = lerp3(anc, xf(ch, -0.06, 0.34, -0.16), pk); // prone: rifle out in front, on the elbows
+        anc[1] += Math.sin(2 * ph) * 0.016 * port * Wk;
         const gunM = mat();
-        M4.trs(gunM, anc[0] - fx * k * 0.05 * s, anc[1], anc[2] - fz * k * 0.05 * s, c.yaw + port * 0.85, lerp(-pitch, 0.6, port) - k * 0.12 + rel * 0.45, rel * 0.6, s, s, s);
+        M4.trs(gunM, anc[0] - fx * k * 0.05 * s, anc[1], anc[2] - fz * k * 0.05 * s, c.yaw + port * (0.85 + Math.cos(ph) * 0.08 * Wk), lerp(-pitch, 0.6, port) - k * 0.12 + rel * 0.45, rel * 0.6 + ln * 0.45, s, s, s);
         D(GI.m, gunM, c.gunColor || GUNC, c.gunGlow ? { emit: c.gunGlow } : null);
         c._mz = xf(gunM, 0, 0.012, GI.tip + 0.04); c._mzT = performance.now() / 1000;
         const rh = xf(gunM, 0, -0.075, 0);
         let lh = xf(gunM, GI.lh[0], GI.lh[1], GI.lh[2]);
         if (rel > 0.05) { const mg = xf(gunM, 0, -0.16 - Math.abs(Math.sin(a.relPh)) * 0.1, 0.12); lh = [lerp(lh[0], mg[0], rel), lerp(lh[1], mg[1], rel), lerp(lh[2], mg[2], rel)]; }
+        const S1 = xf(ch, 0.225, 0.14, 0);
+        const pumpK = vk ? 0 : port * (1 - rel);
+        if (pumpK > 0.02) { // sprint: the free arm pumps in time with the legs
+          const sw = Math.cos(ph) * 0.95 * Wk, fw = Math.sin(sw) * 0.36;
+          lh = lerp3(lh, [S1[0] + fx * fw + cyw * 0.05, S1[1] - 0.34 * Math.cos(sw) - 0.02 + Math.max(0, sw) * 0.12, S1[2] + fz * fw - syw * 0.05], pumpK);
+        }
+        if (vk) lh = lerp3(lh, [S1[0] + fx * 0.25 + cyw * 0.1, S1[1] - 0.55, S1[2] + fz * 0.25 - syw * 0.1], Math.sin(Math.PI * vk)); // hand plants on the cover
         for (const [side, T] of [[-1, rh], [1, lh]]) {
-          const S = xf(ch, side * 0.225, 0.14, 0);
-          const [El, H] = ik(S, T, UA * s, FA * s, rotY([side * 0.7, -1, -0.35]));
+          const S = side > 0 ? S1 : xf(ch, side * 0.225, 0.14, 0);
+          const pole = side > 0 && pumpK > 0.5 ? rotY([0.5, -0.3, -1]) : pk > 0.5 ? rotY([side * 0.9, -1, 0.2]) : rotY([side * 0.7, -1, -0.35]);
+          const [El, H] = ik(S, T, UA * s, FA * s, pole);
           D(M.upper, seg(S, El, FWD, s), sleeveCol, sleeveOpt);
           D(M.fore, seg(El, H, FWD, s), foreCol, foreOpt);
           if (!far) D(M.hand, seg(H, [2 * H[0] - El[0], 2 * H[1] - El[1], 2 * H[2] - El[2]], FWD, s), handCol);
@@ -366,11 +462,10 @@
       R.material(0, 0);
 
       // -------------------------------------------------------------- blob shadow
-      const W = BR3.X && BR3.X.WORLD;
       const gy = W ? W.groundAt(c.x, c.z, c.y + 0.3) : c.y, hgt = Math.max(0, c.y - gy);
       if (hgt < 14 && !vfar) {
-        const lying = c.dead || c.knocked, r = (lying ? 0.55 : 0.4) * s * (1 - Math.min(0.7, hgt / 10));
-        M4.trs(SM, c.x + (c.knocked ? fx * 0.45 : c.dead ? -fx * 0.45 : 0), gy + 0.035, c.z + (c.knocked ? fz * 0.45 : c.dead ? -fz * 0.45 : 0), c.yaw, 0, 0, r, 1, lying ? r * 2 : r);
+        const lying = c.dead || c.knocked || pr > 0.5, r = (lying ? 0.55 : 0.4) * s * (1 - Math.min(0.7, hgt / 10));
+        M4.trs(SM, c.x + (c.knocked || pr > 0.5 ? fx * 0.45 : c.dead ? -fx * 0.45 : 0), gy + 0.035, c.z + (c.knocked || pr > 0.5 ? fz * 0.45 : c.dead ? -fz * 0.45 : 0), c.yaw, 0, 0, r, 1, lying ? r * 2 : r);
         R.blend(true); R.cull(false);
         R.draw(M.disc, SM, SH4, { unlit: true });
         R.cull(true); R.blend(false);

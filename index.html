@@ -64,7 +64,7 @@
     <div id="hudBtns">
       <button id="scoreBtn" class="hb" title="Scoreboard (Tab)">📋</button>
       <button id="shopBtn" class="hb hidden" title="Shop (Y)">🛒</button>
-      <button id="emoteBtn" class="hb" title="Emote (Z)">😀</button>
+      <button id="emoteBtn" class="hb" title="Emote (J)">😀</button>
       <button id="chatBtn" class="hb hidden" title="Quick chat">💬</button>
       <button id="mapBtn" class="hb" title="Map (M)">🗺️</button>
       <button id="pauseBtn" class="hb" title="Pause (Esc)">⏸</button>
@@ -77,12 +77,15 @@
 
     <!-- touch controls -->
     <div id="touch" class="touch-only">
-      <button data-btn="fire" class="tb fire" aria-label="Fire">🔥</button>
-      <button data-btn="fire2" class="tb fire2" aria-label="Fire">🔥</button>
-      <button data-btn="aim" class="tb aim" aria-label="Aim">🎯</button>
-      <button data-btn="jump" class="tb jump" aria-label="Jump">⤒</button>
-      <button data-btn="crouch" class="tb crouch" aria-label="Crouch">⤓</button>
-      <button data-btn="reload" class="tb reload" aria-label="Reload">↻</button>
+      <button data-btn="fire" class="tb fire" aria-label="Fire"><svg class="ico"><use href="#i-bullet"/></svg></button>
+      <button data-btn="fire2" class="tb fire2" aria-label="Fire"><svg class="ico"><use href="#i-bullet"/></svg></button>
+      <button data-btn="aim" class="tb aim" aria-label="Aim"><svg class="ico"><use href="#i-scope"/></svg></button>
+      <button data-btn="jump" class="tb jump" aria-label="Jump / vault"><svg class="ico j"><use href="#i-jump"/></svg><svg class="ico v"><use href="#i-vault"/></svg></button>
+      <button data-btn="crouch" class="tb crouch" aria-label="Crouch"><svg class="ico"><use href="#i-crouch"/></svg></button>
+      <button data-btn="prone" class="tb prone" aria-label="Prone"><svg class="ico"><use href="#i-prone"/></svg></button>
+      <button data-btn="leanL" class="tb lean leanL" aria-label="Peek left"><svg class="ico"><use href="#i-leanL"/></svg></button>
+      <button data-btn="leanR" class="tb lean leanR" aria-label="Peek right"><svg class="ico"><use href="#i-leanR"/></svg></button>
+      <button data-btn="reload" class="tb reload" aria-label="Reload"><svg class="ico"><use href="#i-reload"/></svg></button>
       <button data-btn="grenade" class="tb gren" aria-label="Grenade">💣<em id="grenC2">0</em></button>
       <button data-btn="heal" class="tb heal" aria-label="Heal">🩹<em id="healC2">0</em></button>
       <button data-btn="drink" class="tb drink" aria-label="Drink">🥤<em id="drinkC2">0</em></button>
@@ -92,9 +95,10 @@
     <button id="dropBtn" data-btn="jump" class="hidden">🪂 JUMP</button>
     <div id="keys" class="desk-only">
       <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>LMB</b> fire</span><span><b>RMB</b> aim</span>
-      <span><b>Shift</b> sprint</span><span><b>Space</b> jump</span><span><b>C</b> crouch</span><span><b>R</b> reload</span>
-      <span><b>E</b> pick up / hold revive</span><span><b>Q</b> skill</span><span><b>T</b> gloo</span><span><b>G</b> grenade</span>
-      <span><b>H</b> heal</span><span><b>B</b> drink</span><span><b>Z</b> emote</span><span><b>Tab</b> scores</span><span><b>M</b> map</span>
+      <span><b>Shift</b> sprint</span><span><b>Space</b> jump / vault</span><span><b>C</b> crouch</span><span><b>Z</b> prone</span>
+      <span><b>Q</b>/<b>E</b> peek</span><span><b>R</b> reload</span><span><b>F</b> pick up / hold revive</span><span><b>V</b> skill</span>
+      <span><b>T</b> gloo</span><span><b>G</b> grenade</span><span><b>H</b> heal</span><span><b>B</b> drink</span><span><b>J</b> emote</span>
+      <span><b>Tab</b> scores</span><span><b>M</b> map</span>
     </div>
 
     <!-- scoreboard (Tab / 📋) -->
@@ -240,7 +244,7 @@
       <ol class="steps">
         <li>🪂 <b>Battle Royale (Classic / Ranked):</b> jump from the plane, loot guns and gear, stay inside the shrinking zone, and be the last squad standing for the <b>BOOYAH</b>. Squad and Duo come with bot teammates.</li>
         <li>⚔️ <b>Clash Squad:</b> 4v4 rounds in a small arena. Each round starts with a 10 s buy phase (🛒). Earn coins from kills and rounds, and win 4 rounds to take the match.</li>
-        <li>🩸 <b>Knock &amp; revive:</b> in team modes a downed player crawls and bleeds out. Stand next to a knocked teammate and <b>hold</b> E / ➕ REVIVE to bring them back.</li>
+        <li>🩸 <b>Knock &amp; revive:</b> in team modes a downed player crawls and bleeds out. Stand next to a knocked teammate and <b>hold</b> F / ➕ REVIVE to bring them back.</li>
         <li>🧊 <b>Gloo walls:</b> instant cover that blocks bullets until it's shot down. Use them!</li>
         <li>🦸 <b>Skills &amp; pets:</b> equip 1 active skill (SKILL button), 2 passive skills and a pet in the lobby. Buy more with 🪙 coins and 💎 diamonds earned by playing.</li>
         <li>🏆 <b>Ranks:</b> Ranked modes give rank points: Bronze → Silver → Gold → Platinum → Diamond → Heroic → Grandmaster.</li>
@@ -249,17 +253,17 @@
         <div class="ctl"><h3>📱 Phone (landscape)</h3><ul>
           <li>Left side: drag to <b>move</b> (push far to sprint) · Right side: drag to <b>look</b></li>
           <li>🔥 <b>Fire</b> (drag it to aim while shooting) · 2nd 🔥 on the left</li>
-          <li>🎯 Scope · ⤒ Jump · ⤓ Crouch · ↻ Reload · SKILL · 🧊 Gloo</li>
+          <li>🎯 Scope · ⤒ Jump (turns into <b>Vault</b> next to low cover) · ⤓ Crouch ·  Prone ·   Peek left / right · ↻ Reload · SKILL · 🧊 Gloo</li>
           <li>🩹 Heal · 🥤 Drink · 💣 Grenade · tap a weapon slot to switch</li></ul></div>
         <div class="ctl"><h3>⌨️ Keyboard + Mouse</h3><ul>
-          <li><b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump · <b>C</b> crouch</li>
+          <li><b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump / vault · <b>C</b> crouch · <b>Z</b> prone · hold <b>Q</b> / <b>E</b> peek</li>
           <li><b>Mouse</b> look (click to lock) · <b>LMB</b> fire · <b>RMB</b> scope</li>
-          <li><b>R</b> reload · <b>E</b> pick up / hold to revive · <b>Q</b> skill · <b>T</b> gloo</li>
-          <li><b>H</b> heal · <b>B</b> drink · <b>G</b> grenade · <b>Z</b> emote · <b>Y</b> shop · <b>Tab</b> scores · <b>M</b> map</li></ul></div>
+          <li><b>R</b> reload · <b>F</b> pick up / hold to revive · <b>V</b> skill · <b>T</b> gloo</li>
+          <li><b>H</b> heal · <b>B</b> drink · <b>G</b> grenade · <b>J</b> emote · <b>Y</b> shop · <b>Tab</b> scores · <b>M</b> map</li></ul></div>
         <div class="ctl"><h3>🎮 Controller</h3><ul>
           <li>Left stick move · Right stick look · <b>RT</b> fire · <b>LT</b> scope</li>
-          <li><b>A</b> jump · <b>B</b> crouch · <b>X</b> reload / pick up / revive · <b>Y</b> switch</li>
-          <li><b>LB</b> grenade · <b>RB</b> heal · D-pad ◀ skill · ▶ gloo</li></ul></div>
+          <li><b>A</b> jump / vault · <b>B</b> crouch (hold: prone) · <b>X</b> reload / pick up / revive · <b>Y</b> switch</li>
+          <li><b>LB</b> grenade · <b>RB</b> heal · D-pad ◀ ▶ peek · ▼ gloo · <b>R3</b> skill</li></ul></div>
       </div>
       <h3>Weapons</h3>
       <div class="legend" id="wLegend"></div>
@@ -296,6 +300,7 @@
   <div id="toast" class="hidden"></div>
   <div id="loading" class="screen"><div class="panel"><h2>Building the island…</h2><p class="tag" id="loadMsg">Loading</p></div></div>
 
+  <script src="js/br/icons.js"></script>
   <script src="js/countries.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/br/engine.js"></script>
